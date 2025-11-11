@@ -901,49 +901,174 @@ def county_list(request):
     
     return render(request, 'counties/list.html', context)
 
+from django.db.models import Avg
+from django.db.models.functions import TruncMonth
+from datetime import datetime, timedelta
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+import json
+
+import json
+from decimal import Decimal
+
+def decimal_to_float(obj):
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError
+
 
 @login_required
 def supplier_performance(request):
-    """Supplier performance analytics dashboard"""
-    # Get all supplier performances
+    """Supplier performance analytics dashboard with dynamic graphs"""
     performances = SupplierPerformance.objects.select_related('supplier').order_by(
         '-overall_performance_score'
     )
-    
-    # Performance statistics
+
     total_suppliers = performances.count()
     avg_performance_score = performances.aggregate(
         avg_score=Avg('overall_performance_score')
     )['avg_score'] or 0
-    
-    # Top performers
-    top_performers = performances.filter(
-        overall_performance_score__gte=80
-    )[:10]
-    
-    # Need improvement
-    need_improvement = performances.filter(
-        overall_performance_score__lt=60
-    )[:10]
-    
+
+    # Top and low performers
+    top_performers = performances.filter(overall_performance_score__gte=80)[:10]
+    need_improvement = performances.filter(overall_performance_score__lt=60)[:10]
+
+    # Chart 1: Score Distribution
+    score_ranges = [
+        {'range': '90-100', 'count': performances.filter(overall_performance_score__gte=90).count()},
+        {'range': '80-89', 'count': performances.filter(overall_performance_score__gte=80, overall_performance_score__lt=90).count()},
+        {'range': '70-79', 'count': performances.filter(overall_performance_score__gte=70, overall_performance_score__lt=80).count()},
+        {'range': '60-69', 'count': performances.filter(overall_performance_score__gte=60, overall_performance_score__lt=70).count()},
+        {'range': 'Below 60', 'count': performances.filter(overall_performance_score__lt=60).count()},
+    ]
+
+    # Chart 2: Top 10 Suppliers
+    top_10_suppliers = performances[:10]
+    top_suppliers_data = {
+        'labels': [p.supplier.name for p in top_10_suppliers],
+        'scores': [float(p.overall_performance_score) for p in top_10_suppliers]
+    }
+
+    # Chart 3: Quality vs Delivery Performance Scatter
+    scatter_data = []
+    quality_scores = []
+    delivery_scores = []
+
+    for perf in performances[:50]:
+        total = perf.total_deliveries or 1
+        good_quality = total - (perf.damaged_cargo_count + perf.quality_issues_count)
+        quality_score = (good_quality / total) * 100
+        delivery_performance = float(perf.on_time_delivery_rate or 0)
+
+        scatter_data.append({
+            'x': round(quality_score, 2),
+            'y': round(delivery_performance, 2),
+            'label': perf.supplier.name,
+            'overall': float(perf.overall_performance_score)
+        })
+
+        quality_scores.append(quality_score)
+        delivery_scores.append(delivery_performance)
+
+    # Chart 4: Average Metrics Comparison (computed manually)
+    avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0
+    avg_delivery = sum(delivery_scores) / len(delivery_scores) if delivery_scores else 0
+
+    avg_metrics = {
+        'Quality Score': round(avg_quality, 2),
+        'Delivery Performance': round(avg_delivery, 2),
+        'Responsiveness': 0,  # Placeholder for future metric
+        'Cost Competitiveness': 0,  # Placeholder
+        'Overall Score': round(avg_performance_score, 2)
+    }
+
+    # Chart 5: Performance Trend (last 6 months) — FIXED FIELD NAME
+    six_months_ago = datetime.now() - timedelta(days=180)
+    monthly_performance = SupplierPerformance.objects.filter(
+        last_calculated__gte=six_months_ago  # <-- changed from last_evaluation_date
+    ).annotate(
+        month=TruncMonth('last_calculated')  # <-- also changed
+    ).values('month').annotate(
+        avg_score=Avg('overall_performance_score')
+    ).order_by('month')
+
+    trend_data = {
+        'labels': [mp['month'].strftime('%b %Y') for mp in monthly_performance],
+        'scores': [float(mp['avg_score']) for mp in monthly_performance]
+    }
+
     context = {
         'performances': performances,
         'total_suppliers': total_suppliers,
-        'avg_performance_score': avg_performance_score,
+        'avg_performance_score': round(avg_performance_score, 2),
         'top_performers': top_performers,
         'need_improvement': need_improvement,
+        'score_ranges': json.dumps(score_ranges, default=decimal_to_float),
+        'top_suppliers_data': json.dumps(top_suppliers_data, default=decimal_to_float),
+        'scatter_data': json.dumps(scatter_data, default=decimal_to_float),
+        'avg_metrics': json.dumps(avg_metrics, default=decimal_to_float),
+        'trend_data': json.dumps(trend_data, default=decimal_to_float),
+
     }
-    
+
     return render(request, 'analytics/supplier_performance.html', context)
 
 
 @login_required
 def reports_list(request):
-    """List all generated reports"""
+    """List all generated reports with analytics"""
     reports = Report.objects.all().order_by('-created_at')
+    
+    # Chart 1: Reports by Type
+    reports_by_type = Report.objects.values('report_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    type_chart_data = {
+        'labels': [r['report_type'] for r in reports_by_type],
+        'counts': [r['count'] for r in reports_by_type]
+    }
+    
+    # Chart 2: Reports Over Time (last 12 months)
+    from datetime import datetime, timedelta
+    twelve_months_ago = datetime.now() - timedelta(days=365)
+    
+    monthly_reports = Report.objects.filter(
+        created_at__gte=twelve_months_ago
+    ).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+    
+    timeline_data = {
+        'labels': [mr['month'].strftime('%b %Y') for mr in monthly_reports],
+        'counts': [mr['count'] for mr in monthly_reports]
+    }
+    
+    # Chart 3: Reports by Status
+    reports_by_status = Report.objects.values('status').annotate(
+        count=Count('id')
+    )
+    
+    status_data = {
+        'labels': [r['status'].replace('_', ' ').title() for r in reports_by_status],
+        'counts': [r['count'] for r in reports_by_status]
+    }
+    
+    # Statistics
+    total_reports = reports.count()
+    pending_reports = reports.filter(status='pending').count()
+    completed_reports = reports.filter(status='completed').count()
     
     context = {
         'reports': reports,
+        'total_reports': total_reports,
+        'pending_reports': pending_reports,
+        'completed_reports': completed_reports,
+        'type_chart_data': json.dumps(type_chart_data),
+        'timeline_data': json.dumps(timeline_data),
+        'status_data': json.dumps(status_data),
     }
     
     return render(request, 'reports/list.html', context)
@@ -951,15 +1076,52 @@ def reports_list(request):
 
 @login_required
 def report_detail(request, report_id):
-    """View a specific report"""
+    """View a specific report with detailed analytics"""
     report = get_object_or_404(Report, id=report_id)
     
+    # Get related data based on report type
     context = {
         'report': report,
     }
     
+    # Add specific analytics based on report type
+    if report.report_type == 'supplier_performance':
+        # Get supplier performance metrics
+        performances = SupplierPerformance.objects.select_related('supplier').order_by(
+            '-overall_performance_score'
+        )[:20]
+        
+        performance_chart = {
+            'labels': [p.supplier.name for p in performances],
+            'scores': [float(p.overall_performance_score) for p in performances]
+        }
+        context['performance_chart'] = json.dumps(performance_chart)
+        
+    elif report.report_type == 'inventory_analysis':
+        # Get inventory data
+        from inventory.models import Inventory
+        
+        inventory_items = Inventory.objects.select_related('product').order_by('-quantity')[:15]
+        
+        inventory_chart = {
+            'labels': [item.product.name for item in inventory_items],
+            'quantities': [item.quantity for item in inventory_items]
+        }
+        context['inventory_chart'] = json.dumps(inventory_chart)
+        
+    elif report.report_type == 'procurement_summary':
+        # Get procurement data
+        from procurement.models import PurchaseOrder
+        
+        recent_pos = PurchaseOrder.objects.order_by('-order_date')[:10]
+        
+        po_chart = {
+            'labels': [f"PO-{po.id}" for po in recent_pos],
+            'amounts': [float(po.total_amount) for po in recent_pos]
+        }
+        context['po_chart'] = json.dumps(po_chart)
+    
     return render(request, 'reports/detail.html', context)
-
 
 @login_required
 def alerts_list(request):

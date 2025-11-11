@@ -497,6 +497,12 @@ class SupplierPerformance(models.Model):
     class Meta:
         verbose_name_plural = 'Supplier Performance Records'
         ordering = ['-overall_performance_score']
+
+    @property
+    def quality_score(self):
+        total = self.total_deliveries or 1
+        good_quality = total - (self.damaged_cargo_count + self.quality_issues_count)
+        return (good_quality / total) * 100
     
     def __str__(self):
         return f"{self.supplier.name} - Score: {self.overall_performance_score}"
