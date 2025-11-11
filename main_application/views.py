@@ -1464,6 +1464,7 @@ from django.db.models.functions import TruncMonth, TruncDate
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 import json
 
@@ -1471,6 +1472,28 @@ from .models import (
     CargoCategory, Cargo, Supplier, Warehouse, 
     SupplierPerformance, Report, Alert
 )
+
+
+# ============================================
+# HELPER FUNCTION FOR JSON SERIALIZATION
+# ============================================
+
+def convert_to_json_serializable(obj):
+    """
+    Recursively convert Decimal, datetime, and date objects to JSON-serializable types
+    """
+    if isinstance(obj, list):
+        return [convert_to_json_serializable(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_to_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    elif obj is None:
+        return None
+    else:
+        return obj
 
 
 # ============================================
@@ -1488,7 +1511,9 @@ def generate_automatic_reports(request):
     # Generate Supplier Performance Report
     supplier_performances = SupplierPerformance.objects.select_related('supplier').all()
     supplier_report_data = {
+        'generated_at': timezone.now().isoformat(),
         'total_suppliers': supplier_performances.count(),
+        'active_suppliers': Supplier.objects.filter(status='ACTIVE').count(),
         'top_performers': list(
             supplier_performances.order_by('-overall_performance_score')[:10]
             .values('supplier__name', 'overall_performance_score', 'on_time_delivery_rate')
@@ -1502,6 +1527,9 @@ def generate_automatic_reports(request):
                 total=Sum('on_time_deliveries'))['total'] or 0,
         }
     }
+    
+    # Convert to JSON-serializable format
+    supplier_report_data = convert_to_json_serializable(supplier_report_data)
     
     Report.objects.create(
         report_type='SUPPLIER_PERFORMANCE',
@@ -1519,11 +1547,14 @@ def generate_automatic_reports(request):
         in_transit=Count('id', filter=Q(status='IN_TRANSIT')),
         delivered=Count('id', filter=Q(status='RECEIVED')),
         delayed=Count('id', filter=Q(is_delayed=True)),
+        cancelled=Count('id', filter=Q(status='CANCELLED')),
+        damaged=Count('id', filter=Q(status='DAMAGED')),
         total_weight=Sum('weight_kg'),
         total_value=Sum('declared_value')
     )
     
     cargo_report_data = {
+        'generated_at': timezone.now().isoformat(),
         'summary': cargo_stats,
         'by_status': list(
             Cargo.objects.values('status')
@@ -1537,6 +1568,9 @@ def generate_automatic_reports(request):
         ),
     }
     
+    # Convert to JSON-serializable format
+    cargo_report_data = convert_to_json_serializable(cargo_report_data)
+    
     Report.objects.create(
         report_type='CARGO_MOVEMENT',
         title=f'Cargo Movement Report - {today.strftime("%B %Y")}',
@@ -1549,6 +1583,7 @@ def generate_automatic_reports(request):
     
     # Generate Delivery Analysis Report
     delivery_data = {
+        'generated_at': timezone.now().isoformat(),
         'on_time_deliveries': Cargo.objects.filter(
             is_delayed=False, status='RECEIVED'
         ).count(),
@@ -1567,6 +1602,9 @@ def generate_automatic_reports(request):
         )
     }
     
+    # Convert to JSON-serializable format
+    delivery_data = convert_to_json_serializable(delivery_data)
+    
     Report.objects.create(
         report_type='DELIVERY_ANALYSIS',
         title=f'Delivery Analysis Report - {today.strftime("%B %Y")}',
@@ -1578,13 +1616,14 @@ def generate_automatic_reports(request):
     )
     
     # Generate Monthly Summary Report
+    monthly_cargos = Cargo.objects.filter(dispatch_date__gte=start_of_month)
+    cargo_count = monthly_cargos.count()
+    
     monthly_summary = {
-        'total_cargos': Cargo.objects.filter(
-            dispatch_date__gte=start_of_month
-        ).count(),
+        'generated_at': timezone.now().isoformat(),
+        'total_cargos': cargo_count,
         'total_value': float(
-            Cargo.objects.filter(dispatch_date__gte=start_of_month)
-            .aggregate(total=Sum('declared_value'))['total'] or 0
+            monthly_cargos.aggregate(total=Sum('declared_value'))['total'] or 0
         ),
         'active_suppliers': Supplier.objects.filter(status='ACTIVE').count(),
         'warehouses': Warehouse.objects.filter(is_active=True).count(),
@@ -1593,6 +1632,9 @@ def generate_automatic_reports(request):
             created_at__gte=start_of_month
         ).count(),
     }
+    
+    # Convert to JSON-serializable format
+    monthly_summary = convert_to_json_serializable(monthly_summary)
     
     Report.objects.create(
         report_type='MONTHLY_SUMMARY',
@@ -1604,8 +1646,11 @@ def generate_automatic_reports(request):
         created_by=request.user
     )
     
+    # Add success message (optional - requires messages framework)
+    from django.contrib import messages
+    messages.success(request, f'Successfully generated 4 reports for {today.strftime("%B %Y")}')
+    
     return redirect('reports_list')
-
 
 
 # ============================================
