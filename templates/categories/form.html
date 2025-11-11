@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Category{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-header {
+        margin-bottom: 30px;
+    }
+    
+    .form-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #111827;
+        margin-bottom: 10px;
+    }
+    
+    .form-subtitle {
+        color: #6b7280;
+        font-size: 14px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .form-label.required::after {
+        content: ' *';
+        color: #ef4444;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .form-input.error {
+        border-color: #ef4444;
+    }
+    
+    .form-checkbox {
+        width: 18px;
+        height: 18px;
+        margin-right: 8px;
+        cursor: pointer;
+    }
+    
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        font-weight: normal;
+    }
+    
+    .form-help {
+        color: #6b7280;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+    
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-block;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .btn-primary {
+        background: #2563eb;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1d4ed8;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 20px;">
+    <!-- Back Button -->
+    <div style="max-width: 800px; margin: 0 auto 20px;">
+        <a href="{% url 'categories:list' %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+            ← Back to Categories
+        </a>
+    </div>
+    
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">{{ action }} Category</h1>
+            <p class="form-subtitle">
+                {% if action == 'Create' %}
+                    Add a new cargo category to organize your shipments
+                {% else %}
+                    Update the category information below
+                {% endif %}
+            </p>
+        </div>
+        
+        {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+        
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="id_name" class="form-label required">Category Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="form-error">{{ form.name.errors.0 }}</div>
+                {% endif %}
+                {% if form.name.help_text %}
+                    <div class="form-help">{{ form.name.help_text }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_code" class="form-label required">Category Code</label>
+                {{ form.code }}
+                {% if form.code.errors %}
+                    <div class="form-error">{{ form.code.errors.0 }}</div>
+                {% endif %}
+                {% if form.code.help_text %}
+                    <div class="form-help">{{ form.code.help_text }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_description" class="form-label">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="form-error">{{ form.description.errors.0 }}</div>
+                {% endif %}
+                {% if form.description.help_text %}
+                    <div class="form-help">{{ form.description.help_text }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    {{ form.requires_special_handling }}
+                    <span>Requires Special Handling</span>
+                </label>
+                {% if form.requires_special_handling.errors %}
+                    <div class="form-error">{{ form.requires_special_handling.errors.0 }}</div>
+                {% endif %}
+                {% if form.requires_special_handling.help_text %}
+                    <div class="form-help">{{ form.requires_special_handling.help_text }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label class="checkbox-label">
+                    {{ form.is_active }}
+                    <span>Active</span>
+                </label>
+                {% if form.is_active.errors %}
+                    <div class="form-error">{{ form.is_active.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {% if action == 'Create' %}
+                        ✓ Create Category
+                    {% else %}
+                        ✓ Update Category
+                    {% endif %}
+                </button>
+                <a href="{% url 'categories:list' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

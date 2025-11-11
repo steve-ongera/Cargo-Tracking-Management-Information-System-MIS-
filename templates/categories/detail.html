@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ category.name }} - Category Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-header {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .detail-title {
+        font-size: 28px;
+        font-weight: bold;
+        color: #111827;
+        margin-bottom: 15px;
+    }
+    
+    .detail-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        color: #6b7280;
+        font-size: 14px;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 13px;
+    }
+    
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #fee2e2; color: #991b1b; }
+    .badge-special { background: #fef3c7; color: #92400e; }
+    
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stats-card h3 {
+        color: #666;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+    
+    .stats-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #2563eb;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .info-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .info-row {
+        display: flex;
+        padding: 10px 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #374151;
+        width: 200px;
+    }
+    
+    .info-value {
+        color: #6b7280;
+        flex: 1;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .chart-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #333;
+    }
+    
+    .data-table {
+        width: 100%;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .data-table th {
+        background: #f3f4f6;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .data-table td {
+        padding: 12px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-block;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn-primary {
+        background: #2563eb;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1d4ed8;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+    
+    .action-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <!-- Back Button -->
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'category_list' %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+            ← Back to Categories
+        </a>
+    </div>
+    
+    <!-- Category Header -->
+    <div class="detail-header">
+        <h1 class="detail-title">{{ category.name }}</h1>
+        <div class="detail-meta">
+            <div>
+                <strong>Code:</strong> {{ category.code }}
+            </div>
+            <div>
+                <strong>Status:</strong>
+                <span class="badge {% if category.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                    {{ category.is_active|yesno:"Active,Inactive" }}
+                </span>
+            </div>
+            {% if category.requires_special_handling %}
+            <div>
+                <strong>Special Handling:</strong>
+                <span class="badge badge-special">Required</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="action-bar" style="margin-top: 20px;">
+            <a href="{% url 'category_update' category.id %}" class="btn btn-primary">
+                ✏️ Edit Category
+            </a>
+            <a href="{% url 'category_delete' category.id %}" class="btn btn-danger">
+                🗑️ Delete Category
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div class="stats-card">
+            <h3>Total Cargos</h3>
+            <div class="stats-value">{{ total_cargos }}</div>
+        </div>
+        <div class="stats-card">
+            <h3>Active Cargos</h3>
+            <div class="stats-value">{{ active_cargos }}</div>
+        </div>
+        <div class="stats-card">
+            <h3>Completed</h3>
+            <div class="stats-value">{{ completed_cargos }}</div>
+        </div>
+        <div class="stats-card">
+            <h3>In Transit</h3>
+            <div class="stats-value">{{ total_cargos|add:"-"|add:completed_cargos }}</div>
+        </div>
+    </div>
+    
+    <!-- Category Information -->
+    <div class="info-card">
+        <div class="info-title">Category Information</div>
+        <div class="info-row">
+            <div class="info-label">Category Code</div>
+            <div class="info-value">{{ category.code }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Category Name</div>
+            <div class="info-value">{{ category.name }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Description</div>
+            <div class="info-value">{{ category.description|default:"No description provided" }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Special Handling</div>
+            <div class="info-value">{{ category.requires_special_handling|yesno:"Yes,No" }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Status</div>
+            <div class="info-value">{{ category.is_active|yesno:"Active,Inactive" }}</div>
+        </div>
+    </div>
+    
+    <!-- Charts -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+        <div class="chart-container">
+            <div class="chart-title">Cargo Status Distribution</div>
+            <canvas id="statusChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title">Monthly Trend (Last 6 Months)</div>
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Recent Cargos -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 15px; color: #111827;">
+            Recent Cargos in This Category
+        </h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Cargo ID</th>
+                    <th>Description</th>
+                    <th>Supplier</th>
+                    <th>Warehouse</th>
+                    <th>Dispatch Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cargo in cargos %}
+                <tr>
+                    <td><strong>{{ cargo.cargo_id }}</strong></td>
+                    <td>{{ cargo.description|truncatewords:8 }}</td>
+                    <td>{{ cargo.supplier.name }}</td>
+                    <td>{{ cargo.warehouse.name }}</td>
+                    <td>{{ cargo.dispatch_date|date:"M d, Y" }}</td>
+                    <td>
+                        <span class="badge badge-{{ cargo.status|lower }}">
+                            {{ cargo.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="#" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #6b7280;">
+                        No cargos found in this category yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Parse data from Django
+    const statusData = JSON.parse('{{ status_chart_data|safe }}');
+    const trendData = JSON.parse('{{ trend_data|safe }}');
+    
+    // Chart 1: Status Distribution
+    new Chart(document.getElementById('statusChart'), {
+        type: 'pie',
+        data: {
+            labels: statusData.labels,
+            datasets: [{
+                data: statusData.data,
+                backgroundColor: [
+                    '#2563eb',
+                    '#10b981',
+                    '#f59e0b',
+                    '#ef4444',
+                    '#8b5cf6',
+                    '#ec4899'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Chart 2: Monthly Trend
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: trendData.labels,
+            datasets: [{
+                label: 'Cargos Dispatched',
+                data: trendData.data,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

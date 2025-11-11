@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} County{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 700px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .form-header {
+        margin-bottom: 30px;
+    }
+    
+    .form-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #111827;
+        margin-bottom: 10px;
+    }
+    
+    .form-subtitle {
+        color: #6b7280;
+        font-size: 14px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .form-label.required::after {
+        content: ' *';
+        color: #ef4444;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    .form-input.error {
+        border-color: #ef4444;
+    }
+    
+    .form-help {
+        color: #6b7280;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .form-error {
+        color: #ef4444;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .alert {
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+    
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-block;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .btn-primary {
+        background: #2563eb;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1d4ed8;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    
+    .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .info-box {
+        background: #f0f9ff;
+        border-left: 4px solid #2563eb;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+    
+    .info-box-title {
+        font-weight: 600;
+        color: #1e40af;
+        margin-bottom: 5px;
+    }
+    
+    .info-box-text {
+        color: #1e40af;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="padding: 20px;">
+    <!-- Back Button -->
+    <div style="max-width: 700px; margin: 0 auto 20px;">
+        <a href="{% url 'counties:list' %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+            ← Back to Counties
+        </a>
+    </div>
+    
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">{{ action }} County</h1>
+            <p class="form-subtitle">
+                {% if action == 'Create' %}
+                    Add a new Kenyan county to the system
+                {% else %}
+                    Update the county information below
+                {% endif %}
+            </p>
+        </div>
+        
+        <div class="info-box">
+            <div class="info-box-title">📍 County Information</div>
+            <div class="info-box-text">
+                Enter the official Kenyan county name and its unique 3-digit code. This will be used for organizing suppliers and warehouses by location.
+            </div>
+        </div>
+        
+        {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+        
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="id_name" class="form-label required">County Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="form-error">{{ form.name.errors.0 }}</div>
+                {% endif %}
+                <div class="form-help">
+                    Enter the full county name (e.g., Nairobi, Mombasa, Nakuru)
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="id_code" class="form-label required">County Code</label>
+                {{ form.code }}
+                {% if form.code.errors %}
+                    <div class="form-error">{{ form.code.errors.0 }}</div>
+                {% endif %}
+                {% if form.code.help_text %}
+                    <div class="form-help">{{ form.code.help_text }}</div>
+                {% endif %}
+                <div class="form-help">
+                    3-digit unique code (e.g., 001 for Mombasa, 047 for Nairobi)
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {% if action == 'Create' %}
+                        ✓ Create County
+                    {% else %}
+                        ✓ Update County
+                    {% endif %}
+                </button>
+                <a href="{% url 'counties:list' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

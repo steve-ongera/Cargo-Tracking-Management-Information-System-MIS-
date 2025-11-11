@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ county.name }} County - Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-header {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .detail-title {
+        font-size: 28px;
+        font-weight: bold;
+        color: #111827;
+        margin-bottom: 15px;
+    }
+    
+    .detail-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        color: #6b7280;
+        font-size: 14px;
+    }
+    
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stats-card h3 {
+        color: #666;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+    
+    .stats-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #2563eb;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .info-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .chart-container {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .chart-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #333;
+    }
+    
+    .data-table {
+        width: 100%;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .data-table th {
+        background: #f3f4f6;
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+    }
+    
+    .data-table td {
+        padding: 12px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #fee2e2; color: #991b1b; }
+    .badge-suspended { background: #fef3c7; color: #92400e; }
+    
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-block;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .btn-primary {
+        background: #2563eb;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1d4ed8;
+    }
+    
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #4b5563;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+    
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .action-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
+    <!-- Back Button -->
+    <div style="margin-bottom: 20px;">
+        <a href="{% url 'county_list' %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+            ← Back to Counties
+        </a>
+    </div>
+    
+    <!-- County Header -->
+    <div class="detail-header">
+        <h1 class="detail-title">{{ county.name }} County</h1>
+        <div class="detail-meta">
+            <div>
+                <strong>County Code:</strong> {{ county.code }}
+            </div>
+            <div>
+                <strong>Total Facilities:</strong> {{ total_suppliers|add:total_warehouses }}
+            </div>
+        </div>
+        
+        <div class="action-bar" style="margin-top: 20px;">
+            <a href="{% url 'county_update' county.id %}" class="btn btn-primary">
+                ✏️ Edit County
+            </a>
+            <a href="{% url 'county_delete' county.id %}" class="btn btn-danger">
+                🗑️ Delete County
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div class="stats-card">
+            <h3>Total Suppliers</h3>
+            <div class="stats-value">{{ total_suppliers }}</div>
+        </div>
+        <div class="stats-card">
+            <h3>Active Suppliers</h3>
+            <div class="stats-value">{{ active_suppliers }}</div>
+        </div>
+        <div class="stats-card">
+            <h3>Total Warehouses</h3>
+            <div class="stats-value">{{ total_warehouses }}</div>
+        </div>
+        <div class="stats-card">
+            <h3>Active Warehouses</h3>
+            <div class="stats-value">{{ active_warehouses }}</div>
+        </div>
+        <div class="stats-card">
+            <h3>Total Cargos</h3>
+            <div class="stats-value">{{ total_cargos }}</div>
+        </div>
+    </div>
+    
+    <!-- Charts -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+        <div class="chart-container">
+            <div class="chart-title">Supplier Status Distribution</div>
+            <canvas id="supplierStatusChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <div class="chart-title">Warehouse Capacity Utilization</div>
+            <canvas id="capacityChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Suppliers Table -->
+    <div style="margin-bottom: 30px;">
+        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 15px; color: #111827;">
+            Top Suppliers in {{ county.name }}
+        </h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Supplier ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Reliability Score</th>
+                    <th>Total Cargos</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for supplier in suppliers %}
+                <tr>
+                    <td><strong>{{ supplier.supplier_id }}</strong></td>
+                    <td>{{ supplier.name }}</td>
+                    <td>{{ supplier.get_supplier_type_display }}</td>
+                    <td>
+                        <span class="badge badge-{{ supplier.status|lower }}">
+                            {{ supplier.status }}
+                        </span>
+                    </td>
+                    <td>{{ supplier.reliability_score }}%</td>
+                    <td>{{ supplier.cargo_count }}</td>
+                    <td>
+                        <a href="{% url 'supplier_detail' supplier.supplier_id %}" class="btn btn-primary btn-sm">
+                            View
+                        </a>
+
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 30px; color: #6b7280;">
+                        No suppliers in this county yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Warehouses Table -->
+    <div>
+        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 15px; color: #111827;">
+            Warehouses in {{ county.name }}
+        </h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Warehouse ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Manager</th>
+                    <th>Total Capacity (sqm)</th>
+                    <th>Utilization</th>
+                    <th>Total Cargos</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for warehouse in warehouses %}
+                <tr>
+                    <td><strong>{{ warehouse.warehouse_id }}</strong></td>
+                    <td>{{ warehouse.name }}</td>
+                    <td>{{ warehouse.get_warehouse_type_display }}</td>
+                    <td>{{ warehouse.manager_name }}</td>
+                    <td>{{ warehouse.total_capacity_sqm }}</td>
+                    <td>{{ warehouse.capacity_utilization_percentage|floatformat:1 }}%</td>
+                    <td>{{ warehouse.cargo_count }}</td>
+                    <td>
+                        <a href="{% url 'warehouse_detail' warehouse.warehouse_id %}" class="btn btn-primary btn-sm">
+                            View
+                        </a>
+
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; padding: 30px; color: #6b7280;">
+                        No warehouses in this county yet.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Parse data from Django
+    const supplierStatusData = JSON.parse('{{ supplier_status_data|safe }}');
+    const capacityData = JSON.parse('{{ capacity_data|safe }}');
+    
+    // Chart 1: Supplier Status Distribution
+    new Chart(document.getElementById('supplierStatusChart'), {
+        type: 'pie',
+        data: {
+            labels: supplierStatusData.labels,
+            datasets: [{
+                data: supplierStatusData.data,
+                backgroundColor: [
+                    '#10b981',
+                    '#f59e0b',
+                    '#ef4444',
+                    '#6b7280'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Chart 2: Warehouse Capacity
+    new Chart(document.getElementById('capacityChart'), {
+        type: 'bar',
+        data: {
+            labels: capacityData.labels,
+            datasets: [
+                {
+                    label: 'Utilization (%)',
+                    data: capacityData.utilization,
+                    backgroundColor: '#2563eb',
+                    yAxisID: 'y1'
+                },
+                {
+                    label: 'Total Capacity (sqm)',
+                    data: capacityData.total,
+                    backgroundColor: '#10b981',
+                    yAxisID: 'y'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    beginAtZero: true
+                },
+                y1: {
+                    type: 'linear',
+                    position: 'right',
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

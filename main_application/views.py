@@ -872,34 +872,472 @@ def warehouse_detail(request, warehouse_id):
     
     return render(request, 'warehouses/detail.html', context)
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Q
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from .models import CargoCategory, County, Supplier, Warehouse, Cargo
+from .forms import CargoCategoryForm, CountyForm  # We'll create these forms
+import json
+
+
+# ==================== CARGO CATEGORY VIEWS ====================
 
 @login_required
 def category_list(request):
-    """List all cargo categories"""
-    categories = CargoCategory.objects.filter(is_active=True).annotate(
-        total_cargos=Count('cargos')
+    """List all cargo categories with analytics"""
+    # Get search query
+    search_query = request.GET.get('search', '')
+    
+    # Base queryset
+    categories = CargoCategory.objects.annotate(
+        total_cargos=Count('cargos'),
+        active_cargos=Count('cargos', filter=Q(cargos__status__in=['DISPATCHED', 'IN_TRANSIT', 'ARRIVED'])),
+        total_value=Count('cargos__declared_value')
     )
     
+    # Apply search filter
+    if search_query:
+        categories = categories.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        categories = categories.filter(is_active=(status_filter == 'active'))
+    
+    # Order by
+    order_by = request.GET.get('order_by', '-total_cargos')
+    categories = categories.order_by(order_by)
+    
+    # Pagination
+    paginator = Paginator(categories, 10)
+    page_number = request.GET.get('page')
+    categories_page = paginator.get_page(page_number)
+    
+    # Statistics
+    total_categories = CargoCategory.objects.count()
+    active_categories = CargoCategory.objects.filter(is_active=True).count()
+    special_handling_categories = CargoCategory.objects.filter(requires_special_handling=True).count()
+    
+    # Chart data: Categories by cargo count
+    top_categories = CargoCategory.objects.annotate(
+        cargo_count=Count('cargos')
+    ).order_by('-cargo_count')[:10]
+    
+    category_chart_data = {
+        'labels': [cat.name for cat in top_categories],
+        'data': [cat.cargo_count for cat in top_categories]
+    }
+    
+    # Chart data: Special handling vs regular
+    special_handling_data = {
+        'labels': ['Special Handling', 'Regular'],
+        'data': [
+            special_handling_categories,
+            active_categories - special_handling_categories
+        ]
+    }
+    
     context = {
-        'categories': categories,
+        'categories': categories_page,
+        'total_categories': total_categories,
+        'active_categories': active_categories,
+        'special_handling_categories': special_handling_categories,
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'order_by': order_by,
+        'category_chart_data': json.dumps(category_chart_data),
+        'special_handling_data': json.dumps(special_handling_data),
     }
     
     return render(request, 'categories/list.html', context)
 
 
 @login_required
-def county_list(request):
-    """List all counties with supplier counts"""
-    counties = County.objects.annotate(
-        supplier_count=Count('supplier'),
-        warehouse_count=Count('warehouse')
-    ).order_by('name')
+def category_create(request):
+    """Create a new cargo category"""
+    if request.method == 'POST':
+        form = CargoCategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save()
+            messages.success(request, f'Category "{category.name}" created successfully!')
+            return redirect('categories:list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = CargoCategoryForm()
     
     context = {
-        'counties': counties,
+        'form': form,
+        'action': 'Create',
+    }
+    
+    return render(request, 'categories/form.html', context)
+
+
+@login_required
+def category_detail(request, category_id):
+    """View category details with related cargo statistics"""
+    category = get_object_or_404(CargoCategory, id=category_id)
+    
+    # Get related cargos
+    cargos = Cargo.objects.filter(category=category).select_related(
+        'supplier', 'warehouse'
+    ).order_by('-dispatch_date')[:20]
+    
+    # Statistics
+    total_cargos = Cargo.objects.filter(category=category).count()
+    active_cargos = Cargo.objects.filter(
+        category=category,
+        status__in=['DISPATCHED', 'IN_TRANSIT', 'ARRIVED']
+    ).count()
+    completed_cargos = Cargo.objects.filter(
+        category=category,
+        status='RECEIVED'
+    ).count()
+    
+    # Status distribution
+    status_distribution = Cargo.objects.filter(category=category).values(
+        'status'
+    ).annotate(count=Count('id')).order_by('-count')
+    
+    status_chart_data = {
+        'labels': [item['status'].replace('_', ' ').title() for item in status_distribution],
+        'data': [item['count'] for item in status_distribution]
+    }
+    
+    # Monthly trend (last 6 months)
+    from datetime import datetime, timedelta
+    from django.db.models.functions import TruncMonth
+    
+    six_months_ago = datetime.now() - timedelta(days=180)
+    monthly_trend = Cargo.objects.filter(
+        category=category,
+        dispatch_date__gte=six_months_ago
+    ).annotate(
+        month=TruncMonth('dispatch_date')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+    
+    trend_data = {
+        'labels': [item['month'].strftime('%b %Y') for item in monthly_trend],
+        'data': [item['count'] for item in monthly_trend]
+    }
+    
+    context = {
+        'category': category,
+        'cargos': cargos,
+        'total_cargos': total_cargos,
+        'active_cargos': active_cargos,
+        'completed_cargos': completed_cargos,
+        'status_chart_data': json.dumps(status_chart_data),
+        'trend_data': json.dumps(trend_data),
+    }
+    
+    return render(request, 'categories/detail.html', context)
+
+
+@login_required
+def category_update(request, category_id):
+    """Update an existing category"""
+    category = get_object_or_404(CargoCategory, id=category_id)
+    
+    if request.method == 'POST':
+        form = CargoCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            category = form.save()
+            messages.success(request, f'Category "{category.name}" updated successfully!')
+            return redirect('categories:detail', category_id=category.id)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = CargoCategoryForm(instance=category)
+    
+    context = {
+        'form': form,
+        'category': category,
+        'action': 'Update',
+    }
+    
+    return render(request, 'categories/form.html', context)
+
+
+@login_required
+def category_delete(request, category_id):
+    """Delete a category"""
+    category = get_object_or_404(CargoCategory, id=category_id)
+    
+    # Check if category has related cargos
+    cargo_count = Cargo.objects.filter(category=category).count()
+    
+    if request.method == 'POST':
+        if cargo_count > 0:
+            messages.error(
+                request,
+                f'Cannot delete category "{category.name}". It has {cargo_count} associated cargo(s).'
+            )
+            return redirect('categories:detail', category_id=category.id)
+        
+        category_name = category.name
+        category.delete()
+        messages.success(request, f'Category "{category_name}" deleted successfully!')
+        return redirect('categories:list')
+    
+    context = {
+        'category': category,
+        'cargo_count': cargo_count,
+    }
+    
+    return render(request, 'categories/delete.html', context)
+
+
+@login_required
+def category_toggle_status(request, category_id):
+    """Toggle category active status (AJAX)"""
+    if request.method == 'POST':
+        category = get_object_or_404(CargoCategory, id=category_id)
+        category.is_active = not category.is_active
+        category.save()
+        
+        return JsonResponse({
+            'success': True,
+            'is_active': category.is_active,
+            'message': f'Category {"activated" if category.is_active else "deactivated"} successfully!'
+        })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
+
+# ==================== COUNTY VIEWS ====================
+
+@login_required
+def county_list(request):
+    """List all counties with supplier and warehouse counts"""
+    # Get search query
+    search_query = request.GET.get('search', '')
+    
+    # Base queryset with annotations
+    counties = County.objects.annotate(
+        supplier_count=Count('supplier', filter=Q(supplier__status='ACTIVE')),
+        warehouse_count=Count('warehouse', filter=Q(warehouse__is_active=True)),
+        total_suppliers=Count('supplier'),
+        total_warehouses=Count('warehouse'),
+        cargo_count=Count('warehouse__cargos')
+    )
+    
+    # Apply search filter
+    if search_query:
+        counties = counties.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Order by
+    order_by = request.GET.get('order_by', 'name')
+    counties = counties.order_by(order_by)
+    
+    # Pagination
+    paginator = Paginator(counties, 15)
+    page_number = request.GET.get('page')
+    counties_page = paginator.get_page(page_number)
+    
+    # Statistics
+    total_counties = County.objects.count()
+    counties_with_suppliers = County.objects.annotate(
+        sup_count=Count('supplier')
+    ).filter(sup_count__gt=0).count()
+    counties_with_warehouses = County.objects.annotate(
+        wh_count=Count('warehouse')
+    ).filter(wh_count__gt=0).count()
+    
+    # Chart data: Top counties by suppliers
+    top_supplier_counties = County.objects.annotate(
+        supplier_count=Count('supplier')
+    ).order_by('-supplier_count')[:10]
+    
+    supplier_chart_data = {
+        'labels': [county.name for county in top_supplier_counties],
+        'data': [county.supplier_count for county in top_supplier_counties]
+    }
+    
+    # Chart data: Top counties by warehouses
+    top_warehouse_counties = County.objects.annotate(
+        warehouse_count=Count('warehouse')
+    ).order_by('-warehouse_count')[:10]
+    
+    warehouse_chart_data = {
+        'labels': [county.name for county in top_warehouse_counties],
+        'data': [county.warehouse_count for county in top_warehouse_counties]
+    }
+    
+    # Distribution chart
+    distribution_data = {
+        'labels': ['With Suppliers', 'With Warehouses', 'Without Facilities'],
+        'data': [
+            counties_with_suppliers,
+            counties_with_warehouses,
+            total_counties - max(counties_with_suppliers, counties_with_warehouses)
+        ]
+    }
+    
+    context = {
+        'counties': counties_page,
+        'total_counties': total_counties,
+        'counties_with_suppliers': counties_with_suppliers,
+        'counties_with_warehouses': counties_with_warehouses,
+        'search_query': search_query,
+        'order_by': order_by,
+        'supplier_chart_data': json.dumps(supplier_chart_data),
+        'warehouse_chart_data': json.dumps(warehouse_chart_data),
+        'distribution_data': json.dumps(distribution_data),
     }
     
     return render(request, 'counties/list.html', context)
+
+
+@login_required
+def county_create(request):
+    """Create a new county"""
+    if request.method == 'POST':
+        form = CountyForm(request.POST)
+        if form.is_valid():
+            county = form.save()
+            messages.success(request, f'County "{county.name}" created successfully!')
+            return redirect('counties:list')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = CountyForm()
+    
+    context = {
+        'form': form,
+        'action': 'Create',
+    }
+    
+    return render(request, 'counties/form.html', context)
+
+
+@login_required
+def county_detail(request, county_id):
+    """View county details with suppliers and warehouses"""
+    county = get_object_or_404(County, id=county_id)
+    
+    # Get suppliers in this county
+    suppliers = Supplier.objects.filter(county=county).annotate(
+        cargo_count=Count('cargos')
+    ).order_by('-reliability_score')[:10]
+    
+    # Get warehouses in this county
+    warehouses = Warehouse.objects.filter(county=county).annotate(
+        cargo_count=Count('cargos')
+    ).order_by('-total_capacity_sqm')[:10]
+    
+    # Statistics
+    total_suppliers = Supplier.objects.filter(county=county).count()
+    active_suppliers = Supplier.objects.filter(county=county, status='ACTIVE').count()
+    total_warehouses = Warehouse.objects.filter(county=county).count()
+    active_warehouses = Warehouse.objects.filter(county=county, is_active=True).count()
+    
+    # Cargo statistics
+    total_cargos = Cargo.objects.filter(
+        Q(supplier__county=county) | Q(warehouse__county=county)
+    ).count()
+    
+    # Supplier status distribution
+    supplier_status_dist = Supplier.objects.filter(county=county).values(
+        'status'
+    ).annotate(count=Count('id'))
+    
+    supplier_status_data = {
+        'labels': [item['status'].title() for item in supplier_status_dist],
+        'data': [item['count'] for item in supplier_status_dist]
+    }
+    
+    # Warehouse capacity utilization
+    warehouses_capacity = Warehouse.objects.filter(county=county)
+    capacity_data = {
+        'labels': [wh.name for wh in warehouses_capacity],
+        'utilization': [float(wh.capacity_utilization_percentage) for wh in warehouses_capacity],
+        'total': [float(wh.total_capacity_sqm) for wh in warehouses_capacity]
+    }
+    
+    context = {
+        'county': county,
+        'suppliers': suppliers,
+        'warehouses': warehouses,
+        'total_suppliers': total_suppliers,
+        'active_suppliers': active_suppliers,
+        'total_warehouses': total_warehouses,
+        'active_warehouses': active_warehouses,
+        'total_cargos': total_cargos,
+        'supplier_status_data': json.dumps(supplier_status_data),
+        'capacity_data': json.dumps(capacity_data),
+    }
+    
+    return render(request, 'counties/detail.html', context)
+
+
+@login_required
+def county_update(request, county_id):
+    """Update an existing county"""
+    county = get_object_or_404(County, id=county_id)
+    
+    if request.method == 'POST':
+        form = CountyForm(request.POST, instance=county)
+        if form.is_valid():
+            county = form.save()
+            messages.success(request, f'County "{county.name}" updated successfully!')
+            return redirect('counties:detail', county_id=county.id)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = CountyForm(instance=county)
+    
+    context = {
+        'form': form,
+        'county': county,
+        'action': 'Update',
+    }
+    
+    return render(request, 'counties/form.html', context)
+
+
+@login_required
+def county_delete(request, county_id):
+    """Delete a county"""
+    county = get_object_or_404(County, id=county_id)
+    
+    # Check for related objects
+    supplier_count = Supplier.objects.filter(county=county).count()
+    warehouse_count = Warehouse.objects.filter(county=county).count()
+    
+    if request.method == 'POST':
+        if supplier_count > 0 or warehouse_count > 0:
+            messages.error(
+                request,
+                f'Cannot delete county "{county.name}". It has {supplier_count} supplier(s) and {warehouse_count} warehouse(s).'
+            )
+            return redirect('counties:detail', county_id=county.id)
+        
+        county_name = county.name
+        county.delete()
+        messages.success(request, f'County "{county_name}" deleted successfully!')
+        return redirect('counties:list')
+    
+    context = {
+        'county': county,
+        'supplier_count': supplier_count,
+        'warehouse_count': warehouse_count,
+    }
+    
+    return render(request, 'counties/delete.html', context)
 
 from django.db.models import Avg
 from django.db.models.functions import TruncMonth
