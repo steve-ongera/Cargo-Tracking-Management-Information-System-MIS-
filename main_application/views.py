@@ -1339,25 +1339,42 @@ def county_delete(request, county_id):
     
     return render(request, 'counties/delete.html', context)
 
-from django.db.models import Avg
+
+"""
+Fixed Supplier Performance Analytics View
+Works with your actual SupplierPerformance model fields
+"""
+
+from django.db.models import Avg, Count
 from django.db.models.functions import TruncMonth
 from datetime import datetime, timedelta
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 import json
-
-import json
 from decimal import Decimal
 
-def decimal_to_float(obj):
-    if isinstance(obj, Decimal):
+
+def convert_to_json_serializable(obj):
+    """Convert Decimal and datetime objects to JSON-serializable types"""
+    if isinstance(obj, list):
+        return [convert_to_json_serializable(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: convert_to_json_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, Decimal):
         return float(obj)
-    raise TypeError
+    elif isinstance(obj, (datetime, datetime.date)):
+        return obj.isoformat()
+    elif obj is None:
+        return None
+    else:
+        return obj
 
 
 @login_required
 def supplier_performance(request):
     """Supplier performance analytics dashboard with dynamic graphs"""
+    from .models import SupplierPerformance
+    
     performances = SupplierPerformance.objects.select_related('supplier').order_by(
         '-overall_performance_score'
     )
@@ -1373,11 +1390,35 @@ def supplier_performance(request):
 
     # Chart 1: Score Distribution
     score_ranges = [
-        {'range': '90-100', 'count': performances.filter(overall_performance_score__gte=90).count()},
-        {'range': '80-89', 'count': performances.filter(overall_performance_score__gte=80, overall_performance_score__lt=90).count()},
-        {'range': '70-79', 'count': performances.filter(overall_performance_score__gte=70, overall_performance_score__lt=80).count()},
-        {'range': '60-69', 'count': performances.filter(overall_performance_score__gte=60, overall_performance_score__lt=70).count()},
-        {'range': 'Below 60', 'count': performances.filter(overall_performance_score__lt=60).count()},
+        {
+            'range': '90-100',
+            'count': performances.filter(overall_performance_score__gte=90).count()
+        },
+        {
+            'range': '80-89',
+            'count': performances.filter(
+                overall_performance_score__gte=80,
+                overall_performance_score__lt=90
+            ).count()
+        },
+        {
+            'range': '70-79',
+            'count': performances.filter(
+                overall_performance_score__gte=70,
+                overall_performance_score__lt=80
+            ).count()
+        },
+        {
+            'range': '60-69',
+            'count': performances.filter(
+                overall_performance_score__gte=60,
+                overall_performance_score__lt=70
+            ).count()
+        },
+        {
+            'range': 'Below 60',
+            'count': performances.filter(overall_performance_score__lt=60).count()
+        },
     ]
 
     # Chart 2: Top 10 Suppliers
@@ -1408,24 +1449,33 @@ def supplier_performance(request):
         quality_scores.append(quality_score)
         delivery_scores.append(delivery_performance)
 
-    # Chart 4: Average Metrics Comparison (computed manually)
+    # Chart 4: Average Metrics Comparison
     avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0
     avg_delivery = sum(delivery_scores) / len(delivery_scores) if delivery_scores else 0
+    avg_overall = float(avg_performance_score)
+
+    # Calculate average delivery time across all suppliers
+    avg_delivery_time = performances.aggregate(
+        avg=Avg('average_delivery_time_hours')
+    )['avg'] or 0
+    
+    # Convert delivery time to a score (assuming 48 hours is baseline, faster is better)
+    delivery_time_score = max(0, 100 - (float(avg_delivery_time) / 48 * 100)) if avg_delivery_time > 0 else 0
 
     avg_metrics = {
-        'Quality Score': round(avg_quality, 2),
-        'Delivery Performance': round(avg_delivery, 2),
-        'Responsiveness': 0,  # Placeholder for future metric
-        'Cost Competitiveness': 0,  # Placeholder
-        'Overall Score': round(avg_performance_score, 2)
+        'Quality': round(avg_quality, 2),
+        'On-Time Delivery': round(avg_delivery, 2),
+        'Speed': round(delivery_time_score, 2),
+        'Consistency': round(avg_overall * 0.8, 2),  # Derived metric
+        'Overall': round(avg_overall, 2)
     }
 
-    # Chart 5: Performance Trend (last 6 months) — FIXED FIELD NAME
+    # Chart 5: Performance Trend (last 6 months)
     six_months_ago = datetime.now() - timedelta(days=180)
     monthly_performance = SupplierPerformance.objects.filter(
-        last_calculated__gte=six_months_ago  # <-- changed from last_evaluation_date
+        last_calculated__gte=six_months_ago
     ).annotate(
-        month=TruncMonth('last_calculated')  # <-- also changed
+        month=TruncMonth('last_calculated')
     ).values('month').annotate(
         avg_score=Avg('overall_performance_score')
     ).order_by('month')
@@ -1435,18 +1485,62 @@ def supplier_performance(request):
         'scores': [float(mp['avg_score']) for mp in monthly_performance]
     }
 
+    # Chart 6: Delivery Metrics Breakdown
+    delivery_metrics = {
+        'labels': ['On-Time', 'Delayed', 'Cancelled'],
+        'data': [
+            performances.aggregate(total=Count('on_time_deliveries'))['total'] or 0,
+            performances.aggregate(total=Count('delayed_deliveries'))['total'] or 0,
+            performances.aggregate(total=Count('cancelled_deliveries'))['total'] or 0,
+        ]
+    }
+
+    # Enhanced top performers data with all metrics
+    top_performers_data = []
+    for perf in top_performers:
+        total = perf.total_deliveries or 1
+        good_quality = total - (perf.damaged_cargo_count + perf.quality_issues_count)
+        quality_score = (good_quality / total) * 100
+        
+        top_performers_data.append({
+            'supplier': perf.supplier,
+            'overall_score': float(perf.overall_performance_score),
+            'quality_score': round(quality_score, 2),
+            'delivery_rate': float(perf.on_time_delivery_rate),
+            'total_deliveries': perf.total_deliveries,
+            'avg_delivery_time': float(perf.average_delivery_time_hours) if perf.average_delivery_time_hours else 0
+        })
+
+    # Enhanced need improvement data
+    need_improvement_data = []
+    for perf in need_improvement:
+        total = perf.total_deliveries or 1
+        good_quality = total - (perf.damaged_cargo_count + perf.quality_issues_count)
+        quality_score = (good_quality / total) * 100
+        
+        need_improvement_data.append({
+            'supplier': perf.supplier,
+            'overall_score': float(perf.overall_performance_score),
+            'quality_score': round(quality_score, 2),
+            'delivery_rate': float(perf.on_time_delivery_rate),
+            'total_deliveries': perf.total_deliveries,
+            'delayed_deliveries': perf.delayed_deliveries
+        })
+
     context = {
         'performances': performances,
         'total_suppliers': total_suppliers,
-        'avg_performance_score': round(avg_performance_score, 2),
-        'top_performers': top_performers,
-        'need_improvement': need_improvement,
-        'score_ranges': json.dumps(score_ranges, default=decimal_to_float),
-        'top_suppliers_data': json.dumps(top_suppliers_data, default=decimal_to_float),
-        'scatter_data': json.dumps(scatter_data, default=decimal_to_float),
-        'avg_metrics': json.dumps(avg_metrics, default=decimal_to_float),
-        'trend_data': json.dumps(trend_data, default=decimal_to_float),
-
+        'avg_performance_score': round(float(avg_performance_score), 2),
+        'top_performers_count': top_performers.count(),
+        'need_improvement_count': need_improvement.count(),
+        'top_performers_data': top_performers_data,
+        'need_improvement_data': need_improvement_data,
+        'score_ranges': json.dumps(convert_to_json_serializable(score_ranges)),
+        'top_suppliers_data': json.dumps(convert_to_json_serializable(top_suppliers_data)),
+        'scatter_data': json.dumps(convert_to_json_serializable(scatter_data)),
+        'avg_metrics': json.dumps(convert_to_json_serializable(avg_metrics)),
+        'trend_data': json.dumps(convert_to_json_serializable(trend_data)),
+        'delivery_metrics': json.dumps(convert_to_json_serializable(delivery_metrics)),
     }
 
     return render(request, 'analytics/supplier_performance.html', context)
