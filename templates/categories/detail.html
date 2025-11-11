@@ -1,134 +1,240 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ category.name }} - Category Detail{% endblock %}
+{% block title %}{{ category.name }} - Cargo Tracking MIS{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 <style>
+    :root {
+        --primary-color: #4e73df;
+        --primary-hover: #2e59d9;
+        --success-color: #1cc88a;
+        --warning-color: #f6c23e;
+        --danger-color: #e74a3b;
+        --info-color: #36b9cc;
+        --light-bg: #f8f9fc;
+        --border-color: #e3e6f0;
+        --text-muted: #858796;
+    }
+    
+    .breadcrumb-custom {
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    
     .detail-header {
         background: white;
         border-radius: 8px;
         padding: 30px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
         margin-bottom: 30px;
+        border-left: 4px solid var(--primary-color);
     }
     
     .detail-title {
         font-size: 28px;
         font-weight: bold;
         color: #111827;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
+    }
+    
+    .detail-subtitle {
+        color: var(--text-muted);
+        font-size: 1rem;
+        margin-bottom: 20px;
     }
     
     .detail-meta {
         display: flex;
-        gap: 20px;
+        gap: 30px;
         flex-wrap: wrap;
-        color: #6b7280;
+        color: var(--text-muted);
         font-size: 14px;
     }
     
-    .badge {
-        display: inline-block;
-        padding: 6px 14px;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 13px;
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
-    .badge-active { background: #dcfce7; color: #166534; }
-    .badge-inactive { background: #fee2e2; color: #991b1b; }
-    .badge-special { background: #fef3c7; color: #92400e; }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
     
     .stats-card {
         background: white;
         border-radius: 8px;
-        padding: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 25px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        text-align: center;
+        border-top: 4px solid var(--primary-color);
     }
     
-    .stats-card h3 {
-        color: #666;
-        font-size: 14px;
-        font-weight: 600;
-        margin-bottom: 10px;
-        text-transform: uppercase;
+    .stats-card.success { border-top-color: var(--success-color); }
+    .stats-card.warning { border-top-color: var(--warning-color); }
+    .stats-card.info { border-top-color: var(--info-color); }
+    .stats-card.danger { border-top-color: var(--danger-color); }
+    
+    .stats-icon {
+        font-size: 2rem;
+        margin-bottom: 15px;
+        opacity: 0.8;
     }
+    
+    .stats-card.success .stats-icon { color: var(--success-color); }
+    .stats-card.warning .stats-icon { color: var(--warning-color); }
+    .stats-card.info .stats-icon { color: var(--info-color); }
+    .stats-card.danger .stats-icon { color: var(--danger-color); }
+    .stats-card .stats-icon { color: var(--primary-color); }
     
     .stats-value {
         font-size: 32px;
         font-weight: bold;
-        color: #2563eb;
+        color: #111827;
+        margin-bottom: 5px;
+    }
+    
+    .stats-label {
+        color: var(--text-muted);
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     
     .info-card {
         background: white;
         border-radius: 8px;
         padding: 25px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 30px;
     }
     
     .info-title {
         font-size: 18px;
         font-weight: 600;
-        color: #333;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #e5e7eb;
+        color: #111827;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     
     .info-row {
         display: flex;
-        padding: 10px 0;
-        border-bottom: 1px solid #f3f4f6;
+        padding: 15px 0;
+        border-bottom: 1px solid var(--border-color);
+        align-items: flex-start;
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
     }
     
     .info-label {
         font-weight: 600;
         color: #374151;
         width: 200px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
     
     .info-value {
-        color: #6b7280;
+        color: var(--text-muted);
         flex: 1;
+    }
+    
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 30px;
     }
     
     .chart-container {
         background: white;
         border-radius: 8px;
         padding: 25px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        height: 350px; /* Fixed height */
     }
+
     
     .chart-title {
         font-size: 18px;
         font-weight: 600;
         margin-bottom: 20px;
-        color: #333;
+        color: #111827;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     
-    .data-table {
-        width: 100%;
+    .table-container {
         background: white;
         border-radius: 8px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
         overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
     }
     
-    .data-table th {
-        background: #f3f4f6;
-        padding: 12px;
-        text-align: left;
+    .table-header {
+        background: var(--light-bg);
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .table th {
         font-weight: 600;
-        color: #374151;
+        color: #5a5c69;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px 16px;
+        background: var(--light-bg);
     }
     
-    .data-table td {
-        padding: 12px;
-        border-top: 1px solid #e5e7eb;
+    .table td {
+        padding: 12px 16px;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #fee2e2; color: #991b1b; }
+    .badge-special { background: #fef3c7; color: #92400e; }
+    
+    .badge-dispatched { background: #fef3c7; color: #92400e; }
+    .badge-in-transit { background: #dbeafe; color: #1e40af; }
+    .badge-arrived { background: #e0e7ff; color: #3730a3; }
+    .badge-received { background: #dcfce7; color: #166534; }
+    .badge-delayed { background: #fee2e2; color: #991b1b; }
+    .badge-cancelled { background: #f3f4f6; color: #374151; }
+    
+    .action-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 20px;
     }
     
     .btn {
@@ -136,189 +242,336 @@
         border-radius: 6px;
         text-decoration: none;
         font-weight: 500;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         transition: all 0.2s;
         border: none;
         cursor: pointer;
+        font-size: 14px;
     }
     
     .btn-primary {
-        background: #2563eb;
+        background: var(--primary-color);
         color: white;
     }
     
     .btn-primary:hover {
-        background: #1d4ed8;
-    }
-    
-    .btn-secondary {
-        background: #6b7280;
+        background: var(--primary-hover);
         color: white;
-    }
-    
-    .btn-secondary:hover {
-        background: #4b5563;
+        text-decoration: none;
     }
     
     .btn-danger {
-        background: #ef4444;
+        background: var(--danger-color);
         color: white;
     }
     
     .btn-danger:hover {
         background: #dc2626;
+        color: white;
+        text-decoration: none;
     }
     
-    .action-bar {
+    .btn-outline-primary {
+        background: transparent;
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--primary-color);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #111827;
         display: flex;
+        align-items: center;
         gap: 10px;
-        flex-wrap: wrap;
+    }
+    
+    .empty-state {
+        padding: 40px 20px;
+        text-align: center;
+        color: var(--text-muted);
+    }
+    
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+        
+        .detail-meta {
+            gap: 15px;
+        }
+        
+        .info-row {
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .info-label {
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
-    <!-- Back Button -->
-    <div style="margin-bottom: 20px;">
-        <a href="{% url 'category_list' %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
-            ← Back to Categories
-        </a>
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-custom">
+        <a href="{% url 'dashboard' %}"><i class="bi bi-house-door"></i> Home</a>
+        <span>/</span>
+        <a href="{% url 'category_list' %}">Categories</a>
+        <span>/</span>
+        <span>{{ category.name }}</span>
     </div>
     
     <!-- Category Header -->
     <div class="detail-header">
-        <h1 class="detail-title">{{ category.name }}</h1>
-        <div class="detail-meta">
+        <div class="d-flex justify-content-between align-items-start">
             <div>
-                <strong>Code:</strong> {{ category.code }}
+                <h1 class="detail-title">
+                    <i class="bi bi-grid-3x3-gap-fill text-primary me-2"></i>{{ category.name }}
+                </h1>
+                <p class="detail-subtitle">Cargo Category Management</p>
+                
+                <div class="detail-meta">
+                    <div class="meta-item">
+                        <i class="bi bi-code-slash text-muted"></i>
+                        <span><strong>Code:</strong> {{ category.code }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="bi bi-circle-fill text-muted"></i>
+                        <span><strong>Status:</strong> 
+                            <span class="badge {% if category.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                                <i class="bi bi-circle-fill" style="font-size: 6px;"></i>
+                                {{ category.is_active|yesno:"Active,Inactive" }}
+                            </span>
+                        </span>
+                    </div>
+                    {% if category.requires_special_handling %}
+                    <div class="meta-item">
+                        <i class="bi bi-exclamation-triangle text-muted"></i>
+                        <span><strong>Special Handling:</strong>
+                            <span class="badge badge-special">
+                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                Required
+                            </span>
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
-            <div>
-                <strong>Status:</strong>
-                <span class="badge {% if category.is_active %}badge-active{% else %}badge-inactive{% endif %}">
-                    {{ category.is_active|yesno:"Active,Inactive" }}
-                </span>
-            </div>
-            {% if category.requires_special_handling %}
-            <div>
-                <strong>Special Handling:</strong>
-                <span class="badge badge-special">Required</span>
-            </div>
-            {% endif %}
         </div>
         
-        <div class="action-bar" style="margin-top: 20px;">
-            <a href="{% url 'category_update' category.id %}" class="btn btn-primary">
-                ✏️ Edit Category
+        <div class="action-bar">
+            <a href="#" class="btn btn-primary">
+                <i class="bi bi-pencil-square"></i> Edit Category
             </a>
-            <a href="{% url 'category_delete' category.id %}" class="btn btn-danger">
-                🗑️ Delete Category
+            <a href="#" class="btn btn-danger">
+                <i class="bi bi-trash"></i> Delete Category
             </a>
         </div>
     </div>
     
     <!-- Statistics Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+    <div class="stats-grid">
         <div class="stats-card">
-            <h3>Total Cargos</h3>
+            <i class="bi bi-box-seam stats-icon"></i>
             <div class="stats-value">{{ total_cargos }}</div>
+            <div class="stats-label">Total Cargos</div>
         </div>
-        <div class="stats-card">
-            <h3>Active Cargos</h3>
+        
+        <div class="stats-card success">
+            <i class="bi bi-check-circle stats-icon"></i>
             <div class="stats-value">{{ active_cargos }}</div>
+            <div class="stats-label">Active Cargos</div>
         </div>
-        <div class="stats-card">
-            <h3>Completed</h3>
+        
+        <div class="stats-card info">
+            <i class="bi bi-check-square stats-icon"></i>
             <div class="stats-value">{{ completed_cargos }}</div>
+            <div class="stats-label">Completed</div>
         </div>
-        <div class="stats-card">
-            <h3>In Transit</h3>
+        
+        <div class="stats-card warning">
+            <i class="bi bi-truck stats-icon"></i>
             <div class="stats-value">{{ total_cargos|add:"-"|add:completed_cargos }}</div>
+            <div class="stats-label">In Transit</div>
         </div>
     </div>
     
     <!-- Category Information -->
     <div class="info-card">
-        <div class="info-title">Category Information</div>
+        <h3 class="info-title">
+            <i class="bi bi-info-circle text-primary"></i>
+            Category Information
+        </h3>
+        
         <div class="info-row">
-            <div class="info-label">Category Code</div>
+            <div class="info-label">
+                <i class="bi bi-code-slash"></i>
+                Category Code
+            </div>
             <div class="info-value">{{ category.code }}</div>
         </div>
+        
         <div class="info-row">
-            <div class="info-label">Category Name</div>
+            <div class="info-label">
+                <i class="bi bi-tag"></i>
+                Category Name
+            </div>
             <div class="info-value">{{ category.name }}</div>
         </div>
+        
         <div class="info-row">
-            <div class="info-label">Description</div>
-            <div class="info-value">{{ category.description|default:"No description provided" }}</div>
+            <div class="info-label">
+                <i class="bi bi-card-text"></i>
+                Description
+            </div>
+            <div class="info-value">
+                {{ category.description|default:"No description provided" }}
+            </div>
         </div>
+        
         <div class="info-row">
-            <div class="info-label">Special Handling</div>
-            <div class="info-value">{{ category.requires_special_handling|yesno:"Yes,No" }}</div>
+            <div class="info-label">
+                <i class="bi bi-exclamation-triangle"></i>
+                Special Handling
+            </div>
+            <div class="info-value">
+                {% if category.requires_special_handling %}
+                <span class="badge badge-special">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Required
+                </span>
+                {% else %}
+                <span class="text-muted">Not Required</span>
+                {% endif %}
+            </div>
         </div>
+        
         <div class="info-row">
-            <div class="info-label">Status</div>
-            <div class="info-value">{{ category.is_active|yesno:"Active,Inactive" }}</div>
+            <div class="info-label">
+                <i class="bi bi-circle-fill"></i>
+                Status
+            </div>
+            <div class="info-value">
+                <span class="badge {% if category.is_active %}badge-active{% else %}badge-inactive{% endif %}">
+                    <i class="bi bi-circle-fill" style="font-size: 6px;"></i>
+                    {{ category.is_active|yesno:"Active,Inactive" }}
+                </span>
+            </div>
         </div>
     </div>
     
-    <!-- Charts -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+    <!-- Charts Section -->
+    <div class="charts-grid">
         <div class="chart-container">
-            <div class="chart-title">Cargo Status Distribution</div>
-            <canvas id="statusChart"></canvas>
+            <h3 class="chart-title">
+                <i class="bi bi-pie-chart-fill text-primary"></i>
+                Cargo Status Distribution
+            </h3>
+            <canvas id="statusChart" style="height:100%; width:100%;"></canvas>
         </div>
+        
         <div class="chart-container">
-            <div class="chart-title">Monthly Trend (Last 6 Months)</div>
-            <canvas id="trendChart"></canvas>
+            <h3 class="chart-title">
+                <i class="bi bi-graph-up text-primary"></i>
+                Monthly Trend (Last 6 Months)
+            </h3>
+            <canvas id="trendChart" style="height:100%; width:100%;"></canvas>
         </div>
     </div>
     
-    <!-- Recent Cargos -->
-    <div style="margin-bottom: 30px;">
-        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 15px; color: #111827;">
-            Recent Cargos in This Category
-        </h2>
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Cargo ID</th>
-                    <th>Description</th>
-                    <th>Supplier</th>
-                    <th>Warehouse</th>
-                    <th>Dispatch Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for cargo in cargos %}
-                <tr>
-                    <td><strong>{{ cargo.cargo_id }}</strong></td>
-                    <td>{{ cargo.description|truncatewords:8 }}</td>
-                    <td>{{ cargo.supplier.name }}</td>
-                    <td>{{ cargo.warehouse.name }}</td>
-                    <td>{{ cargo.dispatch_date|date:"M d, Y" }}</td>
-                    <td>
-                        <span class="badge badge-{{ cargo.status|lower }}">
-                            {{ cargo.get_status_display }}
-                        </span>
-                    </td>
-                    <td>
-                        <a href="#" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">
-                            View
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" style="text-align: center; padding: 40px; color: #6b7280;">
-                        No cargos found in this category yet.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Recent Cargos Section -->
+    <div class="table-container">
+        <div class="table-header d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">
+                <i class="bi bi-clock-history text-primary me-2"></i>
+                Recent Cargos in {{ category.name }}
+            </h3>
+            <a href="#" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-plus-circle"></i> Add Cargo
+            </a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Cargo ID</th>
+                        <th>Description</th>
+                        <th>Supplier</th>
+                        <th>Warehouse</th>
+                        <th>Dispatch Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cargo in cargos %}
+                    <tr>
+                        <td>
+                            <strong>{{ cargo.cargo_id }}</strong>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ cargo.description|truncatewords:5 }}</div>
+                            <small class="text-muted">{{ cargo.quantity }} {{ cargo.unit_of_measurement }}</small>
+                        </td>
+                        <td>{{ cargo.supplier.name }}</td>
+                        <td>{{ cargo.warehouse.name }}</td>
+                        <td>{{ cargo.dispatch_date|date:"M d, Y" }}</td>
+                        <td>
+                            <span class="badge badge-{{ cargo.status|lower }}">
+                                <i class="bi bi-circle-fill" style="font-size: 6px;"></i>
+                                {{ cargo.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="#" class="btn btn-outline-primary btn-sm" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="#" class="btn btn-outline-warning btn-sm" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <i class="bi bi-box-seam"></i>
+                            <p class="mb-0">No cargos found in this category</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -332,29 +585,36 @@
     
     // Chart 1: Status Distribution
     new Chart(document.getElementById('statusChart'), {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: statusData.labels,
             datasets: [{
                 data: statusData.data,
                 backgroundColor: [
-                    '#2563eb',
-                    '#10b981',
-                    '#f59e0b',
-                    '#ef4444',
-                    '#8b5cf6',
-                    '#ec4899'
-                ]
+                    '#4e73df', // Primary - Dispatched
+                    '#1cc88a', // Success - Received
+                    '#f6c23e', // Warning - In Transit
+                    '#e74a3b', // Danger - Delayed
+                    '#6f42c1', // Arrived
+                    '#858796'  // Muted - Others
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
                 }
-            }
+            },
+            cutout: '60%'
         }
     });
     
@@ -366,22 +626,39 @@
             datasets: [{
                 label: 'Cargos Dispatched',
                 data: trendData.data,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
                 fill: true,
-                tension: 0.4
+                tension: 0.4,
+                borderWidth: 2,
+                pointBackgroundColor: '#4e73df',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }
+                legend: {
+                    display: false
+                }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: { stepSize: 1 }
+                    ticks: { 
+                        stepSize: 1 
+                    },
+                    grid: {
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
                 }
             }
         }
