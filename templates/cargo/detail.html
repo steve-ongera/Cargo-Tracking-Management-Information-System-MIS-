@@ -1,10 +1,664 @@
-<!-- cargo/detail.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>cargo/detail</title>
-</head>
-<body>
-    <h1>cargo/detail</h1>
-</body>
-</html>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ cargo.cargo_id }} - Cargo Detail{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    :root {
+        --primary-color: #4e73df;
+        --success-color: #1cc88a;
+        --warning-color: #f6c23e;
+        --danger-color: #e74a3b;
+        --info-color: #36b9cc;
+        --light-bg: #f8f9fc;
+        --border-color: #e3e6f0;
+    }
+    
+    .breadcrumb-custom {
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 20px;
+    }
+    
+    .info-card h5 {
+        font-weight: 600;
+        color: #5a5c69;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .status-badge.dispatched { background: #4e73df; color: white; }
+    .status-badge.in-transit { background: #36b9cc; color: white; }
+    .status-badge.arrived { background: #f6c23e; color: #333; }
+    .status-badge.received { background: #1cc88a; color: white; }
+    .status-badge.stored { background: #858796; color: white; }
+    .status-badge.delayed { background: #e74a3b; color: white; }
+    
+    .priority-badge {
+        padding: 6px 14px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .priority-badge.urgent { background: #dc3545; color: white; }
+    .priority-badge.high { background: #fd7e14; color: white; }
+    .priority-badge.medium { background: #ffc107; color: #333; }
+    .priority-badge.low { background: #17a2b8; color: white; }
+    
+    #detail-map {
+        height: 500px;
+        width: 100%;
+        border-radius: 8px;
+    }
+    
+    .progress-section {
+        padding: 20px;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--info-color) 100%);
+        border-radius: 8px;
+        color: white;
+        margin-bottom: 20px;
+    }
+    
+    .progress-bar-large {
+        height: 30px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: white;
+        border-radius: 15px;
+        transition: width 1s ease;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 10px;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 20px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -22px;
+        top: 8px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--border-color);
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px var(--border-color);
+    }
+    
+    .timeline-item.active::before {
+        background: var(--success-color);
+        box-shadow: 0 0 0 2px var(--success-color);
+    }
+    
+    .timeline-item::after {
+        content: '';
+        position: absolute;
+        left: -17px;
+        top: 20px;
+        width: 2px;
+        height: calc(100% - 10px);
+        background: var(--border-color);
+    }
+    
+    .timeline-item:last-child::after {
+        display: none;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #858796;
+    }
+    
+    .info-value {
+        color: #5a5c69;
+        text-align: right;
+    }
+    
+    .metric-box {
+        text-align: center;
+        padding: 15px;
+        background: var(--light-bg);
+        border-radius: 8px;
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #5a5c69;
+    }
+    
+    .metric-label {
+        font-size: 0.85rem;
+        color: #858796;
+        text-transform: uppercase;
+    }
+    
+    .alert-item {
+        padding: 12px;
+        border-left: 4px solid;
+        background: white;
+        margin-bottom: 10px;
+        border-radius: 4px;
+    }
+    
+    .alert-item.critical {
+        border-left-color: var(--danger-color);
+        background: #fff5f5;
+    }
+    
+    .alert-item.warning {
+        border-left-color: var(--warning-color);
+        background: #fffbf0;
+    }
+    
+    .waypoint-marker {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+        border: 3px solid var(--primary-color);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .waypoint-marker.reached {
+        background: var(--success-color);
+        border-color: var(--success-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-custom">
+        <a href="{% url 'dashboard' %}"><i class="bi bi-house-door"></i> Home</a>
+        <span>/</span>
+        <a href="{% url 'cargo_list' %}">Cargo Tracking</a>
+        <span>/</span>
+        <span>{{ cargo.cargo_id }}</span>
+    </div>
+    
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">Cargo Details: {{ cargo.cargo_id }}</h1>
+            <p class="text-muted mb-0">Real-time tracking and shipment information</p>
+        </div>
+        <div>
+            <button class="btn btn-primary" onclick="window.print()">
+                <i class="bi bi-printer"></i> Print
+            </button>
+            <a href="{% url 'cargo_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </a>
+        </div>
+    </div>
+    
+    <!-- Progress Section -->
+    <div class="progress-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">
+                <i class="bi bi-truck"></i> Shipment Progress
+            </h4>
+            <div>
+                <span class="status-badge {{ cargo.status|lower }}">
+                    {{ cargo.get_status_display }}
+                </span>
+                <span class="priority-badge {{ cargo.priority|lower }} ms-2">
+                    {{ cargo.get_priority_display }}
+                </span>
+            </div>
+        </div>
+        <div class="progress-bar-large">
+            <div class="progress-fill" style="width: {{ progress }}%;">
+                {{ progress }}%
+            </div>
+        </div>
+        <div class="d-flex justify-content-between mt-3">
+            <div>
+                <i class="bi bi-building"></i> {{ cargo.supplier.name }}
+                <br><small>{{ cargo.supplier.town_city }}</small>
+            </div>
+            <div class="text-end">
+                <i class="bi bi-house-door"></i> {{ cargo.warehouse.name }}
+                <br><small>{{ cargo.warehouse.town_city }}</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content Row -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Live Tracking Map -->
+            <div class="info-card">
+                <h5><i class="bi bi-geo-alt"></i> Live Tracking Map</h5>
+                <div id="detail-map"></div>
+            </div>
+            
+            <!-- Cargo Information -->
+            <div class="info-card">
+                <h5><i class="bi bi-box-seam"></i> Cargo Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <span class="info-label">Cargo ID</span>
+                            <span class="info-value"><strong>{{ cargo.cargo_id }}</strong></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Tracking Number</span>
+                            <span class="info-value">{{ cargo.tracking_number }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Description</span>
+                            <span class="info-value">{{ cargo.description }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Category</span>
+                            <span class="info-value">{{ cargo.category.name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Quantity</span>
+                            <span class="info-value">{{ cargo.quantity }} {{ cargo.unit_of_measurement }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <span class="info-label">Weight</span>
+                            <span class="info-value">{{ cargo.weight_kg }} KG</span>
+                        </div>
+                        {% if cargo.volume_cbm %}
+                        <div class="info-row">
+                            <span class="info-label">Volume</span>
+                            <span class="info-value">{{ cargo.volume_cbm }} CBM</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="info-label">Declared Value</span>
+                            <span class="info-value">KES {{ cargo.declared_value|floatformat:2 }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Transport Mode</span>
+                            <span class="info-value">{{ cargo.get_transport_mode_display }}</span>
+                        </div>
+                        {% if cargo.vehicle_registration %}
+                        <div class="info-row">
+                            <span class="info-label">Vehicle</span>
+                            <span class="info-value">{{ cargo.vehicle_registration }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Delivery Metrics -->
+            <div class="info-card">
+                <h5><i class="bi bi-clock-history"></i> Delivery Metrics</h5>
+                <div class="row g-3">
+                    {% if delivery_metrics.actual_hours %}
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <div class="metric-value">{{ delivery_metrics.actual_hours }}h</div>
+                            <div class="metric-label">Actual Time</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box" style="border-left-color: var(--success-color);">
+                            <div class="metric-value">{{ delivery_metrics.expected_hours }}h</div>
+                            <div class="metric-label">Expected Time</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box" style="border-left-color: {% if delivery_metrics.variance_hours > 0 %}var(--danger-color){% else %}var(--success-color){% endif %};">
+                            <div class="metric-value">{{ delivery_metrics.variance_hours }}h</div>
+                            <div class="metric-label">Variance</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-md-4">
+                        <div class="metric-box">
+                            <div class="metric-value">{{ delivery_metrics.elapsed_hours }}h</div>
+                            <div class="metric-label">Elapsed Time</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box" style="border-left-color: var(--success-color);">
+                            <div class="metric-value">{{ delivery_metrics.expected_hours }}h</div>
+                            <div class="metric-label">Expected Total</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="metric-box" style="border-left-color: var(--info-color);">
+                            <div class="metric-value">{{ delivery_metrics.remaining_hours }}h</div>
+                            <div class="metric-label">Remaining</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Transport Details -->
+            <div class="info-card">
+                <h5><i class="bi bi-truck-flatbed"></i> Transport Details</h5>
+                <div class="info-row">
+                    <span class="info-label">Dispatch Date</span>
+                    <span class="info-value">{{ cargo.dispatch_date|date:"F d, Y H:i" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Expected Arrival</span>
+                    <span class="info-value">{{ cargo.expected_arrival_date|date:"F d, Y H:i" }}</span>
+                </div>
+                {% if cargo.actual_arrival_date %}
+                <div class="info-row">
+                    <span class="info-label">Actual Arrival</span>
+                    <span class="info-value">{{ cargo.actual_arrival_date|date:"F d, Y H:i" }}</span>
+                </div>
+                {% endif %}
+                {% if cargo.driver_name %}
+                <div class="info-row">
+                    <span class="info-label">Driver</span>
+                    <span class="info-value">{{ cargo.driver_name }}</span>
+                </div>
+                {% endif %}
+                {% if cargo.driver_phone %}
+                <div class="info-row">
+                    <span class="info-label">Driver Phone</span>
+                    <span class="info-value">{{ cargo.driver_phone }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Status Timeline -->
+            <div class="info-card">
+                <h5><i class="bi bi-list-check"></i> Status History</h5>
+                <div class="timeline">
+                    {% for history in status_history %}
+                    <div class="timeline-item active">
+                        <div>
+                            <strong>{{ history.to_status }}</strong>
+                            <br>
+                            <small class="text-muted">
+                                {{ history.created_at|date:"M d, Y H:i" }}
+                            </small>
+                            {% if history.change_reason %}
+                            <br>
+                            <small>{{ history.change_reason }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No status history available</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Active Alerts -->
+            {% if related_alerts %}
+            <div class="info-card">
+                <h5><i class="bi bi-bell"></i> Active Alerts</h5>
+                {% for alert in related_alerts %}
+                <div class="alert-item {{ alert.severity|lower }}">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ alert.title }}</strong>
+                        <span class="badge bg-{{ alert.severity|lower }}">{{ alert.severity }}</span>
+                    </div>
+                    <small>{{ alert.message }}</small>
+                    <br>
+                    <small class="text-muted">{{ alert.created_at|timesince }} ago</small>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <!-- Supplier Info -->
+            <div class="info-card">
+                <h5><i class="bi bi-building"></i> Supplier Details</h5>
+                <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value">{{ cargo.supplier.name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Contact</span>
+                    <span class="info-value">{{ cargo.supplier.primary_contact_person }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Phone</span>
+                    <span class="info-value">{{ cargo.supplier.phone_number }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Location</span>
+                    <span class="info-value">{{ cargo.supplier.town_city }}, {{ cargo.supplier.county.name }}</span>
+                </div>
+            </div>
+            
+            <!-- Warehouse Info -->
+            <div class="info-card">
+                <h5><i class="bi bi-house-door"></i> Warehouse Details</h5>
+                <div class="info-row">
+                    <span class="info-label">Name</span>
+                    <span class="info-value">{{ cargo.warehouse.name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Manager</span>
+                    <span class="info-value">{{ cargo.warehouse.manager_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Phone</span>
+                    <span class="info-value">{{ cargo.warehouse.manager_phone }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Location</span>
+                    <span class="info-value">{{ cargo.warehouse.town_city }}, {{ cargo.warehouse.county.name }}</span>
+                </div>
+            </div>
+            
+            <!-- Related Shipments -->
+            {% if related_shipments %}
+            <div class="info-card">
+                <h5><i class="bi bi-box"></i> Related Shipments</h5>
+                {% for related in related_shipments %}
+                <div class="info-row">
+                    <span class="info-label">
+                        <a href="{% url 'cargo_detail' related.cargo_id %}">{{ related.cargo_id }}</a>
+                    </span>
+                    <span class="info-value">
+                        <span class="badge bg-{{ related.status|lower }}">{{ related.get_status_display }}</span>
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Parse tracking data
+    const trackingData = {{ tracking_data|safe }};
+    
+    // Initialize map centered on route
+    const centerLat = (trackingData.supplier.coords.lat + trackingData.warehouse.coords.lat) / 2;
+    const centerLng = (trackingData.supplier.coords.lng + trackingData.warehouse.coords.lng) / 2;
+    
+    const map = L.map('detail-map').setView([centerLat, centerLng], 8);
+    
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18,
+    }).addTo(map);
+    
+    // Define custom icons
+    const supplierIcon = L.divIcon({
+        html: '<i class="bi bi-building" style="font-size: 32px; color: #4e73df;"></i>',
+        className: 'custom-marker',
+        iconSize: [40, 40]
+    });
+    
+    const warehouseIcon = L.divIcon({
+        html: '<i class="bi bi-house-door" style="font-size: 32px; color: #1cc88a;"></i>',
+        className: 'custom-marker',
+        iconSize: [40, 40]
+    });
+    
+    const truckIcon = L.divIcon({
+        html: '<i class="bi bi-truck" style="font-size: 32px; color: #f6c23e; animation: pulse 2s infinite;"></i>',
+        className: 'custom-marker',
+        iconSize: [40, 40]
+    });
+    
+    // Add supplier marker
+    const supplierMarker = L.marker(
+        [trackingData.supplier.coords.lat, trackingData.supplier.coords.lng],
+        { icon: supplierIcon }
+    ).addTo(map);
+    
+    supplierMarker.bindPopup(`
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <h6 style="color: #4e73df; margin-bottom: 8px;">
+                <i class="bi bi-building"></i> ${trackingData.supplier.name}
+            </h6>
+            <p style="margin: 4px 0;"><strong>Origin Point</strong></p>
+            <p style="margin: 4px 0; font-size: 0.9rem;">${trackingData.supplier.address}</p>
+            <p style="margin: 4px 0; font-size: 0.9rem;">
+                <i class="bi bi-telephone"></i> ${trackingData.supplier.phone}
+            </p>
+        </div>
+    `);
+    
+    // Add warehouse marker
+    const warehouseMarker = L.marker(
+        [trackingData.warehouse.coords.lat, trackingData.warehouse.coords.lng],
+        { icon: warehouseIcon }
+    ).addTo(map);
+    
+    warehouseMarker.bindPopup(`
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <h6 style="color: #1cc88a; margin-bottom: 8px;">
+                <i class="bi bi-house-door"></i> ${trackingData.warehouse.name}
+            </h6>
+            <p style="margin: 4px 0;"><strong>Destination Point</strong></p>
+            <p style="margin: 4px 0; font-size: 0.9rem;">${trackingData.warehouse.address}</p>
+            <p style="margin: 4px 0; font-size: 0.9rem;">
+                <i class="bi bi-person"></i> Manager: ${trackingData.warehouse.manager}
+            </p>
+        </div>
+    `);
+    
+    // Draw route line
+    const routeLine = L.polyline([
+        [trackingData.supplier.coords.lat, trackingData.supplier.coords.lng],
+        [trackingData.warehouse.coords.lat, trackingData.warehouse.coords.lng]
+    ], {
+        color: trackingData.status === 'DELAYED' ? '#e74a3b' : '#36b9cc',
+        weight: 4,
+        opacity: 0.7,
+        dashArray: '10, 10'
+    }).addTo(map);
+    
+    // Add waypoint markers
+    trackingData.waypoints.forEach((waypoint, index) => {
+        const lat = trackingData.supplier.coords.lat + 
+            (trackingData.warehouse.coords.lat - trackingData.supplier.coords.lat) * (waypoint.progress / 100);
+        const lng = trackingData.supplier.coords.lng + 
+            (trackingData.warehouse.coords.lng - trackingData.supplier.coords.lng) * (waypoint.progress / 100);
+        
+        const waypointMarker = L.circleMarker([lat, lng], {
+            radius: 6,
+            fillColor: waypoint.reached ? '#1cc88a' : '#fff',
+            color: waypoint.reached ? '#1cc88a' : '#4e73df',
+            weight: 3,
+            fillOpacity: 1
+        }).addTo(map);
+    });
+    
+    // Add current position marker (if in transit)
+    if (trackingData.status === 'IN_TRANSIT' || trackingData.status === 'DISPATCHED') {
+        const currentMarker = L.marker(
+            [trackingData.current_position.lat, trackingData.current_position.lng],
+            { icon: truckIcon }
+        ).addTo(map);
+        
+        currentMarker.bindPopup(`
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <h6 style="color: #f6c23e; margin-bottom: 8px;">
+                    <i class="bi bi-truck"></i> Current Position
+                </h6>
+                <p style="margin: 4px 0;"><strong>Cargo:</strong> ${trackingData.cargo_id}</p>
+                <p style="margin: 4px 0;"><strong>Progress:</strong> ${trackingData.progress.toFixed(1)}%</p>
+                <p style="margin: 4px 0;"><strong>Vehicle:</strong> ${trackingData.vehicle}</p>
+                <p style="margin: 4px 0;"><strong>Driver:</strong> ${trackingData.driver}</p>
+                <p style="margin: 4px 0;"><strong>Contact:</strong> ${trackingData.driver_phone}</p>
+                <p style="margin: 4px 0;"><strong>Expected Arrival:</strong> ${trackingData.expected_arrival}</p>
+            </div>
+        `).openPopup();
+    }
+    
+    // Fit map to show entire route
+    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+    
+    // Auto-refresh every 2 minutes
+    setInterval(() => {
+        location.reload();
+    }, 120000);
+</script>
+{% endblock %}

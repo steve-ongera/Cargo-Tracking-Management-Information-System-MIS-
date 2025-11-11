@@ -459,12 +459,107 @@ from django.http import JsonResponse
 import json
 
 
+"""
+Enhanced Cargo Tracking Views with Geographical Simulation
+Includes real-time tracking, route visualization, and interactive maps
+"""
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Avg, Sum
+from django.utils import timezone
+from datetime import timedelta
+import json
+from decimal import Decimal
+
+
+# Kenya County Coordinates (Major towns/cities)
+KENYA_COORDINATES = {
+    'Nairobi': {'lat': -1.2921, 'lng': 36.8219},
+    'Mombasa': {'lat': -4.0435, 'lng': 39.6682},
+    'Kisumu': {'lat': -0.0917, 'lng': 34.7680},
+    'Nakuru': {'lat': -0.3031, 'lng': 36.0800},
+    'Eldoret': {'lat': 0.5143, 'lng': 35.2698},
+    'Thika': {'lat': -1.0332, 'lng': 37.0693},
+    'Malindi': {'lat': -3.2167, 'lng': 40.1167},
+    'Kitale': {'lat': 1.0167, 'lng': 35.0000},
+    'Garissa': {'lat': -0.4536, 'lng': 39.6401},
+    'Kakamega': {'lat': 0.2827, 'lng': 34.7519},
+    'Nyeri': {'lat': -0.4167, 'lng': 36.9500},
+    'Machakos': {'lat': -1.5177, 'lng': 37.2634},
+    'Meru': {'lat': 0.0469, 'lng': 37.6556},
+    'Kericho': {'lat': -0.3676, 'lng': 35.2839},
+    'Naivasha': {'lat': -0.7167, 'lng': 36.4333},
+}
+
+
+def get_county_coordinates(county_name, town_city):
+    """Get coordinates for a given location"""
+    # Try to match town/city first
+    if town_city in KENYA_COORDINATES:
+        return KENYA_COORDINATES[town_city]
+    
+    # Try to match county name
+    for location, coords in KENYA_COORDINATES.items():
+        if location.lower() in county_name.lower():
+            return coords
+    
+    # Default to Nairobi if not found
+    return KENYA_COORDINATES['Nairobi']
+
+
+def calculate_route_progress(cargo):
+    """Calculate route progress percentage and intermediate points"""
+    if not cargo.dispatch_date or not cargo.expected_arrival_date:
+        return 0, []
+    
+    now = timezone.now()
+    total_duration = (cargo.expected_arrival_date - cargo.dispatch_date).total_seconds()
+    
+    if cargo.actual_arrival_date:
+        # Cargo has arrived
+        progress = 100
+        elapsed = (cargo.actual_arrival_date - cargo.dispatch_date).total_seconds()
+    else:
+        elapsed = (now - cargo.dispatch_date).total_seconds()
+        progress = min((elapsed / total_duration) * 100, 100) if total_duration > 0 else 0
+    
+    # Generate intermediate waypoints for animation
+    waypoints = []
+    num_waypoints = 5
+    
+    for i in range(num_waypoints + 1):
+        waypoint_progress = (i / num_waypoints) * 100
+        waypoints.append({
+            'progress': waypoint_progress,
+            'reached': waypoint_progress <= progress
+        })
+    
+    return round(progress, 2), waypoints
+
+
+def simulate_cargo_position(cargo, supplier_coords, warehouse_coords):
+    """Simulate current cargo position based on progress"""
+    progress, _ = calculate_route_progress(cargo)
+    progress_ratio = progress / 100
+    
+    # Linear interpolation between supplier and warehouse
+    current_lat = supplier_coords['lat'] + (warehouse_coords['lat'] - supplier_coords['lat']) * progress_ratio
+    current_lng = supplier_coords['lng'] + (warehouse_coords['lng'] - supplier_coords['lng']) * progress_ratio
+    
+    return {
+        'lat': round(current_lat, 6),
+        'lng': round(current_lng, 6),
+        'progress': progress
+    }
+
 
 @login_required
 def cargo_tracking_list(request):
-    """List all cargo shipments with filtering and pagination"""
+    """Enhanced list view with geographical tracking"""
     cargos = Cargo.objects.select_related(
-        'supplier', 'warehouse', 'category'
+        'supplier', 'supplier__county', 'warehouse', 'warehouse__county', 'category'
     ).order_by('-dispatch_date')
     
     # Filters
@@ -472,6 +567,7 @@ def cargo_tracking_list(request):
     supplier_filter = request.GET.get('supplier')
     warehouse_filter = request.GET.get('warehouse')
     priority_filter = request.GET.get('priority')
+    search_query = request.GET.get('search')
     
     if status_filter:
         cargos = cargos.filter(status=status_filter)
@@ -481,15 +577,66 @@ def cargo_tracking_list(request):
         cargos = cargos.filter(warehouse_id=warehouse_filter)
     if priority_filter:
         cargos = cargos.filter(priority=priority_filter)
+    if search_query:
+        cargos = cargos.filter(
+            Q(cargo_id__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(tracking_number__icontains=search_query)
+        )
+    
+    # Prepare map data for active shipments
+    active_shipments_map_data = []
+    active_shipments = cargos.filter(status__in=['DISPATCHED', 'IN_TRANSIT'])[:50]
+    
+    for cargo in active_shipments:
+        supplier_coords = get_county_coordinates(
+            cargo.supplier.county.name, 
+            cargo.supplier.town_city
+        )
+        warehouse_coords = get_county_coordinates(
+            cargo.warehouse.county.name,
+            cargo.warehouse.town_city
+        )
+        
+        progress, waypoints = calculate_route_progress(cargo)
+        current_position = simulate_cargo_position(cargo, supplier_coords, warehouse_coords)
+        
+        active_shipments_map_data.append({
+            'cargo_id': cargo.cargo_id,
+            'description': cargo.description[:50],
+            'supplier': {
+                'name': cargo.supplier.name,
+                'coords': supplier_coords
+            },
+            'warehouse': {
+                'name': cargo.warehouse.name,
+                'coords': warehouse_coords
+            },
+            'current_position': current_position,
+            'progress': progress,
+            'status': cargo.status,
+            'priority': cargo.priority,
+            'transport_mode': cargo.transport_mode,
+            'vehicle': cargo.vehicle_registration or 'N/A',
+            'dispatch_date': cargo.dispatch_date.strftime('%Y-%m-%d %H:%M'),
+            'expected_arrival': cargo.expected_arrival_date.strftime('%Y-%m-%d %H:%M'),
+        })
     
     # Pagination
-    paginator = Paginator(cargos, 25)  # 25 items per page
+    paginator = Paginator(cargos, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     # Get filter options
-    suppliers = Supplier.objects.filter(status='ACTIVE')
-    warehouses = Warehouse.objects.filter(is_active=True)
+    suppliers = Supplier.objects.filter(status='ACTIVE').order_by('name')
+    warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
+    
+    # Statistics
+    total_active = cargos.filter(status__in=['DISPATCHED', 'IN_TRANSIT']).count()
+    total_delayed = cargos.filter(is_delayed=True, status__in=['DISPATCHED', 'IN_TRANSIT']).count()
+    total_value = cargos.filter(status__in=['DISPATCHED', 'IN_TRANSIT']).aggregate(
+        Sum('declared_value')
+    )['declared_value__sum'] or 0
     
     context = {
         'page_obj': page_obj,
@@ -502,7 +649,15 @@ def cargo_tracking_list(request):
             'supplier': supplier_filter,
             'warehouse': warehouse_filter,
             'priority': priority_filter,
-        }
+            'search': search_query,
+        },
+        'active_shipments_map_data': json.dumps(active_shipments_map_data),
+        'stats': {
+            'total_active': total_active,
+            'total_delayed': total_delayed,
+            'total_value': total_value,
+        },
+        'kenya_center': {'lat': -1.2921, 'lng': 36.8219},  # Nairobi
     }
     
     return render(request, 'cargo/tracking_list.html', context)
@@ -510,21 +665,95 @@ def cargo_tracking_list(request):
 
 @login_required
 def cargo_detail(request, cargo_id):
-    """Detailed view of a single cargo shipment"""
+    """Enhanced detail view with real-time tracking"""
     cargo = get_object_or_404(
         Cargo.objects.select_related(
-            'supplier', 'warehouse', 'category'
+            'supplier', 'supplier__county',
+            'warehouse', 'warehouse__county',
+            'category', 'created_by'
         ).prefetch_related('status_history', 'alerts'),
         cargo_id=cargo_id
     )
     
-    status_history = cargo.status_history.all().order_by('-created_at')
-    related_alerts = cargo.alerts.filter(is_resolved=False)
+    # Get coordinates
+    supplier_coords = get_county_coordinates(
+        cargo.supplier.county.name,
+        cargo.supplier.town_city
+    )
+    warehouse_coords = get_county_coordinates(
+        cargo.warehouse.county.name,
+        cargo.warehouse.town_city
+    )
+    
+    # Calculate progress and position
+    progress, waypoints = calculate_route_progress(cargo)
+    current_position = simulate_cargo_position(cargo, supplier_coords, warehouse_coords)
+    
+    # Status history
+    status_history = cargo.status_history.select_related('created_by').order_by('-created_at')
+    
+    # Related alerts
+    related_alerts = cargo.alerts.filter(is_resolved=False).order_by('-created_at')
+    
+    # Calculate delivery metrics
+    delivery_metrics = {}
+    if cargo.actual_arrival_date:
+        actual_duration = (cargo.actual_arrival_date - cargo.dispatch_date).total_seconds() / 3600
+        expected_duration = (cargo.expected_arrival_date - cargo.dispatch_date).total_seconds() / 3600
+        delivery_metrics['actual_hours'] = round(actual_duration, 2)
+        delivery_metrics['expected_hours'] = round(expected_duration, 2)
+        delivery_metrics['variance_hours'] = round(actual_duration - expected_duration, 2)
+        delivery_metrics['on_time'] = actual_duration <= expected_duration
+    else:
+        elapsed = (timezone.now() - cargo.dispatch_date).total_seconds() / 3600
+        expected_duration = (cargo.expected_arrival_date - cargo.dispatch_date).total_seconds() / 3600
+        delivery_metrics['elapsed_hours'] = round(elapsed, 2)
+        delivery_metrics['expected_hours'] = round(expected_duration, 2)
+        delivery_metrics['remaining_hours'] = round(max(expected_duration - elapsed, 0), 2)
+    
+    # Related shipments from same supplier
+    related_shipments = Cargo.objects.filter(
+        supplier=cargo.supplier
+    ).exclude(cargo_id=cargo_id).select_related('warehouse')[:5]
+    
+    # Prepare tracking data for map
+    tracking_data = {
+        'cargo_id': cargo.cargo_id,
+        'description': cargo.description,
+        'supplier': {
+            'name': cargo.supplier.name,
+            'address': cargo.supplier.physical_address,
+            'coords': supplier_coords,
+            'phone': cargo.supplier.phone_number,
+        },
+        'warehouse': {
+            'name': cargo.warehouse.name,
+            'address': cargo.warehouse.physical_address,
+            'coords': warehouse_coords,
+            'manager': cargo.warehouse.manager_name,
+        },
+        'current_position': current_position,
+        'progress': progress,
+        'waypoints': waypoints,
+        'status': cargo.status,
+        'priority': cargo.priority,
+        'transport_mode': cargo.get_transport_mode_display(),
+        'vehicle': cargo.vehicle_registration or 'Not Assigned',
+        'driver': cargo.driver_name or 'Not Assigned',
+        'driver_phone': cargo.driver_phone or 'N/A',
+        'dispatch_date': cargo.dispatch_date.strftime('%Y-%m-%d %H:%M'),
+        'expected_arrival': cargo.expected_arrival_date.strftime('%Y-%m-%d %H:%M'),
+        'actual_arrival': cargo.actual_arrival_date.strftime('%Y-%m-%d %H:%M') if cargo.actual_arrival_date else None,
+    }
     
     context = {
         'cargo': cargo,
         'status_history': status_history,
         'related_alerts': related_alerts,
+        'delivery_metrics': delivery_metrics,
+        'related_shipments': related_shipments,
+        'tracking_data': json.dumps(tracking_data),
+        'progress': progress,
     }
     
     return render(request, 'cargo/detail.html', context)

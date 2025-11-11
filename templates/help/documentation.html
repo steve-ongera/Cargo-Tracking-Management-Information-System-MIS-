@@ -1,10 +1,630 @@
-<!-- help/documentation.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>help/documentation</title>
-</head>
-<body>
-    <h1>help/documentation</h1>
-</body>
-</html>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Documentation - Cargo Tracking MIS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+    :root {
+        --primary-color: #4e73df;
+        --primary-hover: #2e59d9;
+        --success-color: #1cc88a;
+        --warning-color: #f6c23e;
+        --danger-color: #e74a3b;
+        --info-color: #36b9cc;
+        --light-bg: #f8f9fc;
+        --border-color: #e3e6f0;
+        --text-muted: #858796;
+    }
+    
+    .breadcrumb-custom {
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .documentation-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        overflow: hidden;
+    }
+    
+    .doc-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .doc-sidebar {
+        background: var(--light-bg);
+        border-right: 1px solid var(--border-color);
+        padding: 0;
+    }
+    
+    .doc-content {
+        padding: 30px;
+        min-height: 600px;
+    }
+    
+    .nav-docs {
+        padding: 20px 0;
+    }
+    
+    .nav-docs .nav-link {
+        color: #5a5c69;
+        padding: 12px 25px;
+        border-left: 3px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-docs .nav-link:hover {
+        background-color: rgba(78, 115, 223, 0.1);
+        color: var(--primary-color);
+    }
+    
+    .nav-docs .nav-link.active {
+        background-color: rgba(78, 115, 223, 0.1);
+        color: var(--primary-color);
+        border-left-color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    .doc-section {
+        margin-bottom: 40px;
+    }
+    
+    .doc-section h2 {
+        color: var(--primary-color);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .doc-section h3 {
+        color: #5a5c69;
+        margin-top: 25px;
+        margin-bottom: 15px;
+    }
+    
+    .feature-card {
+        background: var(--light-bg);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 4px solid var(--primary-color);
+        transition: transform 0.2s ease;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .feature-card h5 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+    }
+    
+    .step-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        position: relative;
+    }
+    
+    .step-number {
+        position: absolute;
+        top: -10px;
+        left: 20px;
+        background: var(--primary-color);
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    
+    .code-block {
+        background: #2d3748;
+        color: #e2e8f0;
+        padding: 15px;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        margin: 15px 0;
+        overflow-x: auto;
+    }
+    
+    .contact-support {
+        background: linear-gradient(135deg, #f8f9fc 0%, #e9ecef 100%);
+        border-radius: 8px;
+        padding: 25px;
+        text-align: center;
+        margin-top: 30px;
+    }
+    
+    .search-box {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .search-box input {
+        padding-left: 40px;
+    }
+    
+    .search-box i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+    }
+    
+    .quick-links {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 25px 0;
+    }
+    
+    .quick-link-card {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .quick-link-card:hover {
+        border-color: var(--primary-color);
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .quick-link-card i {
+        font-size: 2rem;
+        color: var(--primary-color);
+        margin-bottom: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-custom">
+        <a href="{% url 'dashboard' %}"><i class="bi bi-house-door"></i> Home</a>
+        <span>/</span>
+        <a href="{% url 'help_page' %}">Help</a>
+        <span>/</span>
+        <span>Documentation</span>
+    </div>
+    
+    <!-- Documentation Container -->
+    <div class="documentation-container">
+        <!-- Header -->
+        <div class="doc-header">
+            <h1 class="h2 mb-3"><i class="bi bi-file-text me-2"></i>System Documentation</h1>
+            <p class="mb-0">Complete guide to using the Cargo Tracking Management Information System</p>
+        </div>
+        
+        <div class="row g-0">
+            <!-- Sidebar Navigation -->
+            <div class="col-lg-3 doc-sidebar">
+                <div class="search-box p-3">
+                    <i class="bi bi-search"></i>
+                    <input type="text" class="form-control" placeholder="Search documentation...">
+                </div>
+                
+                <ul class="nav nav-docs flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#getting-started">
+                            <i class="bi bi-play-circle me-2"></i>Getting Started
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#cargo-tracking">
+                            <i class="bi bi-box-seam me-2"></i>Cargo Tracking
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#supplier-management">
+                            <i class="bi bi-truck me-2"></i>Supplier Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#warehouse-management">
+                            <i class="bi bi-building me-2"></i>Warehouse Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#reports-analytics">
+                            <i class="bi bi-graph-up me-2"></i>Reports & Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#alerts-notifications">
+                            <i class="bi bi-bell me-2"></i>Alerts & Notifications
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#user-management">
+                            <i class="bi bi-people me-2"></i>User Management
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#troubleshooting">
+                            <i class="bi bi-tools me-2"></i>Troubleshooting
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-lg-9 doc-content">
+                <!-- Quick Links -->
+                <div class="quick-links">
+                    <a href="#cargo-tracking" class="quick-link-card">
+                        <i class="bi bi-box-seam"></i>
+                        <h6>Track Cargo</h6>
+                        <small>Monitor shipments in real-time</small>
+                    </a>
+                    <a href="#supplier-management" class="quick-link-card">
+                        <i class="bi bi-truck"></i>
+                        <h6>Manage Suppliers</h6>
+                        <small>Supplier performance tracking</small>
+                    </a>
+                    <a href="#reports-analytics" class="quick-link-card">
+                        <i class="bi bi-graph-up"></i>
+                        <h6>View Reports</h6>
+                        <small>Analytics and insights</small>
+                    </a>
+                    <a href="#alerts-notifications" class="quick-link-card">
+                        <i class="bi bi-bell"></i>
+                        <h6>Set Alerts</h6>
+                        <small>Stay informed</small>
+                    </a>
+                </div>
+                
+                <!-- Getting Started Section -->
+                <div class="doc-section" id="getting-started">
+                    <h2><i class="bi bi-play-circle me-2"></i>Getting Started</h2>
+                    
+                    <div class="feature-card">
+                        <h5>Welcome to Cargo Tracking MIS</h5>
+                        <p class="mb-0">This comprehensive system helps you manage cargo shipments, track supplier performance, and optimize warehouse operations across Kenya.</p>
+                    </div>
+                    
+                    <h3>System Overview</h3>
+                    <p>The Cargo Tracking Management Information System provides:</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul>
+                                <li>Real-time cargo tracking and monitoring</li>
+                                <li>Supplier performance analytics</li>
+                                <li>Warehouse capacity management</li>
+                                <li>Automated alerts and notifications</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul>
+                                <li>Comprehensive reporting</li>
+                                <li>Multi-county operations support</li>
+                                <li>Quality control tracking</li>
+                                <li>Audit trail and history</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h3>Quick Start Guide</h3>
+                    
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <h5>Add Your First Supplier</h5>
+                        <p>Navigate to Suppliers → New Supplier to add your first supplier with their KRA PIN and contact information.</p>
+                    </div>
+                    
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <h5>Set Up Warehouses</h5>
+                        <p>Go to Warehouses → New Warehouse to configure your storage facilities with capacity details.</p>
+                    </div>
+                    
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <h5>Track Your First Cargo</h5>
+                        <p>Create a new cargo shipment from Cargo Tracking → New Cargo to start monitoring deliveries.</p>
+                    </div>
+                </div>
+                
+                <!-- Cargo Tracking Section -->
+                <div class="doc-section" id="cargo-tracking">
+                    <h2><i class="bi bi-box-seam me-2"></i>Cargo Tracking</h2>
+                    
+                    <p>Track and monitor all cargo shipments from dispatch to final delivery with real-time status updates.</p>
+                    
+                    <h3>Creating a New Cargo Shipment</h3>
+                    <div class="step-card">
+                        <div class="step-number">1</div>
+                        <p>Click <strong>"New Cargo"</strong> from the Cargo Tracking page</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">2</div>
+                        <p>Fill in the cargo details including description, quantity, and declared value</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">3</div>
+                        <p>Select the supplier and destination warehouse</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">4</div>
+                        <p>Set dispatch date and expected arrival date</p>
+                    </div>
+                    <div class="step-card">
+                        <div class="step-number">5</div>
+                        <p>Choose priority level and add any special instructions</p>
+                    </div>
+                    
+                    <h3>Cargo Status Definitions</h3>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Description</th>
+                                    <th>Actions Required</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="badge bg-warning text-dark">DISPATCHED</span></td>
+                                    <td>Cargo has left the supplier</td>
+                                    <td>Monitor for transit updates</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-info">IN_TRANSIT</span></td>
+                                    <td>Cargo is en route to warehouse</td>
+                                    <td>Track location and ETA</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-primary">ARRIVED</span></td>
+                                    <td>Cargo has arrived at warehouse</td>
+                                    <td>Proceed with receiving process</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-success">RECEIVED</span></td>
+                                    <td>Cargo has been received and checked</td>
+                                    <td>Update storage location</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge bg-danger">DELAYED</span></td>
+                                    <td>Cargo is behind schedule</td>
+                                    <td>Investigate and update ETA</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Supplier Management Section -->
+                <div class="doc-section" id="supplier-management">
+                    <h2><i class="bi bi-truck me-2"></i>Supplier Management</h2>
+                    
+                    <p>Manage your supplier relationships and track performance metrics to optimize your supply chain.</p>
+                    
+                    <h3>Supplier Performance Metrics</h3>
+                    <p>The system automatically calculates and tracks:</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>On-Time Delivery Rate</h5>
+                                <p class="mb-0">Percentage of deliveries that arrive by the expected date</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>Reliability Score</h5>
+                                <p class="mb-0">Overall performance score based on multiple factors (0-100)</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>Average Delivery Time</h5>
+                                <p class="mb-0">Mean time taken from dispatch to receipt</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>Quality Issues</h5>
+                                <p class="mb-0">Track damaged goods and quality concerns</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h3>KRA PIN Validation</h3>
+                    <p>The system validates Kenyan KRA PIN numbers using the format: <code>[AP]\d{9}[A-Z]</code></p>
+                    <div class="code-block">
+        Valid Examples:
+        P051234567M
+        A123456789K
+                    </div>
+                </div>
+                
+                <!-- Warehouse Management Section -->
+                <div class="doc-section" id="warehouse-management">
+                    <h2><i class="bi bi-building me-2"></i>Warehouse Management</h2>
+                    
+                    <p>Optimize your storage facilities with capacity tracking and utilization monitoring.</p>
+                    
+                    <h3>Capacity Management</h3>
+                    <p>Monitor warehouse utilization with color-coded indicators:</p>
+                    
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            <div class="capacity-bar mx-auto mb-2" style="width: 100px;">
+                                <div class="capacity-fill capacity-low" style="width: 40%;"></div>
+                            </div>
+                            <small><strong>Low</strong> (&lt;60%) - Optimal</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="capacity-bar mx-auto mb-2" style="width: 100px;">
+                                <div class="capacity-fill capacity-medium" style="width: 75%;"></div>
+                            </div>
+                            <small><strong>Medium</strong> (60-85%) - Monitor</small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="capacity-bar mx-auto mb-2" style="width: 100px;">
+                                <div class="capacity-fill capacity-high" style="width: 95%;"></div>
+                            </div>
+                            <small><strong>High</strong> (&gt;85%) - Critical</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Reports & Analytics Section -->
+                <div class="doc-section" id="reports-analytics">
+                    <h2><i class="bi bi-graph-up me-2"></i>Reports & Analytics</h2>
+                    
+                    <p>Generate comprehensive reports for management insights and decision making.</p>
+                    
+                    <h3>Available Reports</h3>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>Supplier Performance Report</h5>
+                                <p class="mb-0">Detailed analysis of supplier delivery performance and reliability</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>Cargo Movement Report</h5>
+                                <p class="mb-0">Tracking of all cargo shipments within a date range</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>Inventory Summary</h5>
+                                <p class="mb-0">Current stock levels across all warehouses</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="feature-card">
+                                <h5>Delivery Analysis</h5>
+                                <p class="mb-0">Analysis of delivery times and delay patterns</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Support Contact -->
+                <div class="contact-support">
+                    <h4><i class="bi bi-headset me-2"></i>Need More Help?</h4>
+                    <p class="mb-3">Our support team is available to assist you with any questions or issues.</p>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <i class="bi bi-envelope fs-1 text-primary mb-2"></i>
+                            <h6>Email Support</h6>
+                            <small>support@cargotracking.com</small>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="bi bi-telephone fs-1 text-primary mb-2"></i>
+                            <h6>Phone Support</h6>
+                            <small>+254 700 123 456</small>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="bi bi-clock fs-1 text-primary mb-2"></i>
+                            <h6>Support Hours</h6>
+                            <small>Mon-Fri: 8AM-6PM EAT</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Smooth scrolling for documentation navigation
+        const navLinks = document.querySelectorAll('.nav-docs .nav-link');
+        
+        navLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Remove active class from all links
+                navLinks.forEach(l => l.classList.remove('active'));
+                
+                // Add active class to clicked link
+                this.classList.add('active');
+                
+                // Scroll to section
+                const targetId = this.getAttribute('href');
+                const targetSection = document.querySelector(targetId);
+                
+                if (targetSection) {
+                    targetSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Update active nav link on scroll
+        const sections = document.querySelectorAll('.doc-section');
+        
+        function updateActiveNav() {
+            let current = '';
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100;
+                if (window.scrollY >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        
+        window.addEventListener('scroll', updateActiveNav);
+        
+        // Search functionality
+        const searchInput = document.querySelector('.search-box input');
+        
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const sections = document.querySelectorAll('.doc-section');
+            
+            sections.forEach(section => {
+                const sectionText = section.textContent.toLowerCase();
+                if (sectionText.includes(searchTerm)) {
+                    section.style.display = 'block';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

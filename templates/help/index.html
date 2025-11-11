@@ -1,10 +1,628 @@
-<!-- help/index.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>help/index</title>
-</head>
-<body>
-    <h1>help/index</h1>
-</body>
-</html>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Help & Support - Cargo Tracking MIS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+    :root {
+        --primary-color: #4e73df;
+        --primary-hover: #2e59d9;
+        --success-color: #1cc88a;
+        --warning-color: #f6c23e;
+        --danger-color: #e74a3b;
+        --info-color: #36b9cc;
+        --light-bg: #f8f9fc;
+        --border-color: #e3e6f0;
+        --text-muted: #858796;
+    }
+    
+    .breadcrumb-custom {
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .help-hero {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        color: white;
+        padding: 60px 0;
+        border-radius: 8px;
+        margin-bottom: 40px;
+        text-align: center;
+    }
+    
+    .feature-card {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        text-align: center;
+        height: 100%;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-top: 4px solid var(--primary-color);
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.2);
+    }
+    
+    .feature-card i {
+        font-size: 3rem;
+        color: var(--primary-color);
+        margin-bottom: 20px;
+    }
+    
+    .quick-action-card {
+        background: var(--light-bg);
+        border-radius: 8px;
+        padding: 25px;
+        border-left: 4px solid var(--primary-color);
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+    }
+    
+    .quick-action-card:hover {
+        background: white;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    }
+    
+    .support-card {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        text-align: center;
+        border: 1px solid var(--border-color);
+    }
+    
+    .support-card i {
+        font-size: 2.5rem;
+        color: var(--primary-color);
+        margin-bottom: 15px;
+    }
+    
+    .faq-item {
+        border-bottom: 1px solid var(--border-color);
+        padding: 20px 0;
+    }
+    
+    .faq-item:last-child {
+        border-bottom: none;
+    }
+    
+    .faq-question {
+        font-weight: 600;
+        color: var(--primary-color);
+        cursor: pointer;
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .faq-answer {
+        color: var(--text-muted);
+        margin-top: 10px;
+        display: none;
+    }
+    
+    .faq-question::after {
+        content: '\F282';
+        font-family: 'bootstrap-icons';
+        margin-left: auto;
+        transition: transform 0.3s ease;
+    }
+    
+    .faq-question.active::after {
+        transform: rotate(180deg);
+    }
+    
+    .video-guide {
+        background: var(--light-bg);
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .video-placeholder {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        height: 200px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-bottom: 15px;
+    }
+    
+    .contact-form {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    }
+    
+    .urgent-support {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 25px;
+        text-align: center;
+        margin-top: 30px;
+    }
+    
+    .resource-link {
+        display: block;
+        padding: 15px;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        margin-bottom: 10px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.3s ease;
+    }
+    
+    .resource-link:hover {
+        border-color: var(--primary-color);
+        background: var(--light-bg);
+        text-decoration: none;
+        color: inherit;
+        transform: translateX(5px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-custom">
+        <a href="{% url 'dashboard' %}"><i class="bi bi-house-door"></i> Home</a>
+        <span>/</span>
+        <span>Help & Support</span>
+    </div>
+
+    <!-- Hero Section -->
+    <div class="help-hero">
+        <div class="container">
+            <h1 class="display-5 fw-bold mb-3"><i class="bi bi-question-circle me-3"></i>Help & Support Center</h1>
+            <p class="lead mb-4">Get assistance, learn how to use the system, and find answers to common questions</p>
+            <div class="search-box mx-auto" style="max-width: 500px;">
+                <div class="input-group">
+                    <input type="text" class="form-control form-control-lg" placeholder="What do you need help with?">
+                    <button class="btn btn-light" type="button">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="container">
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="h4 mb-4">Quick Actions</h2>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <a href="{% url 'documentation' %}" class="quick-action-card text-decoration-none">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-file-text fs-1 text-primary me-3"></i>
+                        <div>
+                            <h5 class="mb-1 text-dark">Documentation</h5>
+                            <p class="mb-0 text-muted">Complete system guides</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <a href="#video-guides" class="quick-action-card text-decoration-none">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-play-circle fs-1 text-primary me-3"></i>
+                        <div>
+                            <h5 class="mb-1 text-dark">Video Guides</h5>
+                            <p class="mb-0 text-muted">Step-by-step tutorials</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <a href="#faq" class="quick-action-card text-decoration-none">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-patch-question fs-1 text-primary me-3"></i>
+                        <div>
+                            <h5 class="mb-1 text-dark">FAQ</h5>
+                            <p class="mb-0 text-muted">Common questions</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <a href="#contact-support" class="quick-action-card text-decoration-none">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-headset fs-1 text-primary me-3"></i>
+                        <div>
+                            <h5 class="mb-1 text-dark">Contact Support</h5>
+                            <p class="mb-0 text-muted">Get direct help</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Main Features Grid -->
+        <div class="row mb-5">
+            <div class="col-12">
+                <h2 class="h4 mb-4">How Can We Help You?</h2>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="feature-card">
+                    <i class="bi bi-box-seam"></i>
+                    <h4>Cargo Tracking</h4>
+                    <p>Learn how to track shipments, update status, and manage cargo movements efficiently.</p>
+                    <a href="{% url 'documentation' %}#cargo-tracking" class="btn btn-outline-primary">Learn More</a>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="feature-card">
+                    <i class="bi bi-truck"></i>
+                    <h4>Supplier Management</h4>
+                    <p>Manage supplier information, track performance, and optimize your supply chain.</p>
+                    <a href="{% url 'documentation' %}#supplier-management" class="btn btn-outline-primary">Learn More</a>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="feature-card">
+                    <i class="bi bi-building"></i>
+                    <h4>Warehouse Operations</h4>
+                    <p>Understand warehouse management, capacity tracking, and inventory control.</p>
+                    <a href="{% url 'documentation' %}#warehouse-management" class="btn btn-outline-primary">Learn More</a>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="feature-card">
+                    <i class="bi bi-graph-up"></i>
+                    <h4>Reports & Analytics</h4>
+                    <p>Generate insights with comprehensive reports and performance analytics.</p>
+                    <a href="{% url 'documentation' %}#reports-analytics" class="btn btn-outline-primary">Learn More</a>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="feature-card">
+                    <i class="bi bi-bell"></i>
+                    <h4>Alerts & Notifications</h4>
+                    <p>Set up and manage alerts for delays, capacity issues, and system events.</p>
+                    <a href="{% url 'documentation' %}#alerts-notifications" class="btn btn-outline-primary">Learn More</a>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="feature-card">
+                    <i class="bi bi-people"></i>
+                    <h4>User Management</h4>
+                    <p>Manage user accounts, permissions, and system access controls.</p>
+                    <a href="{% url 'documentation' %}#user-management" class="btn btn-outline-primary">Learn More</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Guides Section -->
+        <div class="row mb-5" id="video-guides">
+            <div class="col-12">
+                <h2 class="h4 mb-4">Video Tutorials</h2>
+                <p class="text-muted mb-4">Watch step-by-step guides to master the system features</p>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="video-guide">
+                    <div class="video-placeholder">
+                        <i class="bi bi-play-circle-fill" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5>Getting Started with Cargo Tracking</h5>
+                    <p class="text-muted">Learn the basics of creating and tracking cargo shipments</p>
+                    <button class="btn btn-primary">Watch Tutorial</button>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="video-guide">
+                    <div class="video-placeholder">
+                        <i class="bi bi-play-circle-fill" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5>Supplier Performance Analytics</h5>
+                    <p class="text-muted">Understand how to analyze and improve supplier performance</p>
+                    <button class="btn btn-primary">Watch Tutorial</button>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="video-guide">
+                    <div class="video-placeholder">
+                        <i class="bi bi-play-circle-fill" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5>Warehouse Capacity Management</h5>
+                    <p class="text-muted">Optimize your warehouse space and track utilization</p>
+                    <button class="btn btn-primary">Watch Tutorial</button>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="video-guide">
+                    <div class="video-placeholder">
+                        <i class="bi bi-play-circle-fill" style="font-size: 4rem;"></i>
+                    </div>
+                    <h5>Generating Custom Reports</h5>
+                    <p class="text-muted">Create and export comprehensive business reports</p>
+                    <button class="btn btn-primary">Watch Tutorial</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="row mb-5" id="faq">
+            <div class="col-lg-8">
+                <h2 class="h4 mb-4">Frequently Asked Questions</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">How do I track a cargo shipment?</div>
+                    <div class="faq-answer">
+                        <p>To track a cargo shipment, go to the Cargo Tracking section and use the search or filter functionality. You can view real-time status updates, location information, and estimated arrival times.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">What information do I need to add a new supplier?</div>
+                    <div class="faq-answer">
+                        <p>When adding a new supplier, you'll need their business name, KRA PIN number, contact information, physical address, and details about the goods they supply. The system will validate the KRA PIN format automatically.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">How are supplier performance scores calculated?</div>
+                    <div class="faq-answer">
+                        <p>Supplier performance scores are calculated based on multiple factors including on-time delivery rate, quality of goods, delivery duration, and reliability. The system weights these factors to generate an overall score from 0-100.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Can I export reports to Excel or PDF?</div>
+                    <div class="faq-answer">
+                        <p>Yes, all reports can be exported to multiple formats including Excel, PDF, and CSV. Use the export button in the reports section to download your data in the preferred format.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">How do I set up alerts for delayed shipments?</div>
+                    <div class="faq-answer">
+                        <p>Navigate to the Alerts section and configure notification rules. You can set alerts for delayed shipments, capacity warnings, supplier performance issues, and more. Alerts can be delivered via email or in-system notifications.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">What should I do if I encounter a system error?</div>
+                    <div class="faq-answer">
+                        <p>If you encounter a system error, first try refreshing the page. If the issue persists, note the error message and contact our support team with details about what you were doing when the error occurred.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <h3 class="h5 mb-3">Quick Resources</h3>
+                
+                <a href="{% url 'documentation' %}" class="resource-link">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-file-pdf text-danger me-3"></i>
+                        <div>
+                            <h6 class="mb-1">System Manual</h6>
+                            <small class="text-muted">Complete user guide (PDF)</small>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="#" class="resource-link">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-card-checklist text-success me-3"></i>
+                        <div>
+                            <h6 class="mb-1">Setup Checklist</h6>
+                            <small class="text-muted">Initial system configuration</small>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="#" class="resource-link">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-shield-check text-warning me-3"></i>
+                        <div>
+                            <h6 class="mb-1">Security Guidelines</h6>
+                            <small class="text-muted">Best practices for data security</small>
+                        </div>
+                    </div>
+                </a>
+                
+                <a href="#" class="resource-link">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-lightning-charge text-info me-3"></i>
+                        <div>
+                            <h6 class="mb-1">Keyboard Shortcuts</h6>
+                            <small class="text-muted">Speed up your workflow</small>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Contact Support Section -->
+        <div class="row" id="contact-support">
+            <div class="col-lg-8 mb-4">
+                <h2 class="h4 mb-4">Contact Support</h2>
+                <div class="contact-form">
+                    <form>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Your Name</label>
+                                <input type="text" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email Address</label>
+                                <input type="email" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Subject</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" required>
+                                <option value="">Select a category</option>
+                                <option value="technical">Technical Issue</option>
+                                <option value="feature">Feature Request</option>
+                                <option value="training">Training Question</option>
+                                <option value="billing">Billing Inquiry</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" rows="5" placeholder="Please describe your issue in detail..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Attachments (Optional)</label>
+                            <input type="file" class="form-control" multiple>
+                            <div class="form-text">You can attach screenshots or documents to help us understand your issue better.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Support Request</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <h3 class="h5 mb-4">Support Channels</h3>
+                
+                <div class="support-card mb-4">
+                    <i class="bi bi-envelope"></i>
+                    <h5>Email Support</h5>
+                    <p class="text-muted">Get help via email with detailed responses</p>
+                    <strong>support@cargotracking.com</strong>
+                    <p class="small text-muted mt-2">Response time: Within 4 hours</p>
+                </div>
+                
+                <div class="support-card mb-4">
+                    <i class="bi bi-telephone"></i>
+                    <h5>Phone Support</h5>
+                    <p class="text-muted">Speak directly with our support team</p>
+                    <strong>+254 700 123 456</strong>
+                    <p class="small text-muted mt-2">Mon-Fri: 8:00 AM - 6:00 PM EAT</p>
+                </div>
+                
+                <div class="support-card mb-4">
+                    <i class="bi bi-chat-dots"></i>
+                    <h5>Live Chat</h5>
+                    <p class="text-muted">Instant messaging for quick questions</p>
+                    <button class="btn btn-outline-primary">Start Chat</button>
+                    <p class="small text-muted mt-2">Available during business hours</p>
+                </div>
+                
+                <div class="urgent-support">
+                    <h5><i class="bi bi-exclamation-triangle me-2"></i>Urgent Support</h5>
+                    <p class="mb-3">For critical system issues affecting business operations</p>
+                    <strong>+254 711 987 654</strong>
+                    <p class="small mt-2">24/7 emergency support line</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // FAQ Accordion functionality
+        const faqQuestions = document.querySelectorAll('.faq-question');
+        
+        faqQuestions.forEach(question => {
+            question.addEventListener('click', function() {
+                const answer = this.nextElementSibling;
+                const isActive = this.classList.contains('active');
+                
+                // Close all other FAQs
+                faqQuestions.forEach(q => {
+                    q.classList.remove('active');
+                    q.nextElementSibling.style.display = 'none';
+                });
+                
+                // Toggle current FAQ
+                if (!isActive) {
+                    this.classList.add('active');
+                    answer.style.display = 'block';
+                }
+            });
+        });
+        
+        // Open first FAQ by default
+        if (faqQuestions.length > 0) {
+            faqQuestions[0].click();
+        }
+        
+        // Search functionality
+        const searchInput = document.querySelector('.search-box input');
+        const searchButton = document.querySelector('.search-box button');
+        
+        function performSearch() {
+            const searchTerm = searchInput.value.toLowerCase();
+            if (searchTerm.trim() === '') return;
+            
+            // Scroll to FAQ section and search within FAQs
+            const faqSection = document.getElementById('faq');
+            const faqItems = document.querySelectorAll('.faq-item');
+            let foundMatch = false;
+            
+            faqItems.forEach(item => {
+                const question = item.querySelector('.faq-question').textContent.toLowerCase();
+                const answer = item.querySelector('.faq-answer').textContent.toLowerCase();
+                
+                if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+                    item.style.display = 'block';
+                    if (!foundMatch) {
+                        item.querySelector('.faq-question').click();
+                        foundMatch = true;
+                    }
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            if (!foundMatch) {
+                // If no matches in FAQ, show message
+                const noResults = document.createElement('div');
+                noResults.className = 'alert alert-info mt-3';
+                noResults.innerHTML = `No results found for "<strong>${searchTerm}</strong>". Try different keywords or <a href="#contact-support">contact support</a>.`;
+                faqSection.appendChild(noResults);
+            }
+            
+            // Scroll to FAQ section
+            faqSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        searchButton.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+        
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
