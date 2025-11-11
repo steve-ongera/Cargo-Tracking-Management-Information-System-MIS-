@@ -1,10 +1,209 @@
-<!-- warehouses/list.html -->
-<!DOCTYPE html>
-<html>
-<head>
-    <title>warehouses/list</title>
-</head>
-<body>
-    <h1>warehouses/list</h1>
-</body>
-</html>
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Warehouses - Cargo Tracking MIS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+    :root {
+        --primary-color: #4e73df;
+        --primary-hover: #2e59d9;
+        --success-color: #1cc88a;
+        --warning-color: #f6c23e;
+        --danger-color: #e74a3b;
+        --info-color: #36b9cc;
+        --light-bg: #f8f9fc;
+        --border-color: #e3e6f0;
+        --text-muted: #858796;
+    }
+    
+    .breadcrumb-custom {
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .table-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        overflow: hidden;
+    }
+    
+    .table-header {
+        background: var(--light-bg);
+        padding: 20px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .table th {
+        font-weight: 600;
+        color: #5a5c69;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px 16px;
+        background: var(--light-bg);
+    }
+    
+    .table td {
+        padding: 12px 16px;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .empty-state {
+        padding: 40px 20px;
+        text-align: center;
+        color: var(--text-muted);
+    }
+    
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    .page-header {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .capacity-bar {
+        height: 8px;
+        background-color: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .capacity-fill {
+        height: 100%;
+        border-radius: 4px;
+    }
+    
+    .capacity-low { background-color: var(--success-color); }
+    .capacity-medium { background-color: var(--warning-color); }
+    .capacity-high { background-color: var(--danger-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-custom">
+        <a href="{% url 'dashboard' %}"><i class="bi bi-house-door"></i> Home</a>
+        <span>/</span>
+        <span>Warehouses</span>
+    </div>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 mb-1">Warehouses</h1>
+                <p class="text-muted mb-0">Manage warehouse facilities and capacity</p>
+            </div>
+            <div>
+                <a href="#" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> New Warehouse
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Warehouses Table -->
+    <div class="table-container">
+        <div class="table-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                Warehouse Directory ({{ warehouses|length }} total)
+            </h5>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-download"></i> Export
+                </button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Warehouse ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Location</th>
+                        <th>Manager</th>
+                        <th>Capacity</th>
+                        <th>Utilization</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for warehouse in warehouses %}
+                    <tr>
+                        <td>
+                            <strong>{{ warehouse.warehouse_id }}</strong>
+                        </td>
+                        <td>{{ warehouse.name }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ warehouse.get_warehouse_type_display }}</span>
+                        </td>
+                        <td>
+                            <div>{{ warehouse.town_city }}</div>
+                            <small class="text-muted">{{ warehouse.county.name }}</small>
+                        </td>
+                        <td>
+                            <div>{{ warehouse.manager_name }}</div>
+                            <small class="text-muted">{{ warehouse.manager_phone }}</small>
+                        </td>
+                        <td>
+                            <div>{{ warehouse.total_capacity_sqm }} sqm</div>
+                            <small class="text-muted">Used: {{ warehouse.current_utilization_sqm }} sqm</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">{{ warehouse.utilization_percentage|floatformat:1 }}%</div>
+                                <div class="capacity-bar" style="width: 100px;">
+                                    <div class="capacity-fill 
+                                        {% if warehouse.utilization_percentage < 60 %}capacity-low
+                                        {% elif warehouse.utilization_percentage < 85 %}capacity-medium
+                                        {% else %}capacity-high{% endif %}" 
+                                        style="width: {{ warehouse.utilization_percentage }}%">
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge {% if warehouse.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if warehouse.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'warehouse_detail' warehouse.warehouse_id %}" class="btn btn-sm btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-warning" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <i class="bi bi-building"></i>
+                            <p class="mb-0">No warehouses found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
