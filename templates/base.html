@@ -1,0 +1,592 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cargo Tracking MIS{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --primary-hover: #2e59d9;
+            --success-color: #1cc88a;
+            --warning-color: #f6c23e;
+            --danger-color: #e74a3b;
+            --light-bg: #f8f9fc;
+            --border-color: #e3e6f0;
+            --text-muted: #858796;
+            --sidebar-width: 250px;
+            --topbar-height: 60px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+        
+        /* Topbar */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--topbar-height);
+            background-color: white;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1030;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .topbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        
+        .topbar-brand i {
+            font-size: 1.5rem;
+        }
+        
+        .menu-toggle {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #495057;
+            cursor: pointer;
+            padding: 5px 10px;
+            margin-right: 15px;
+            display: none;
+        }
+        
+        .topbar-search {
+            flex: 1;
+            max-width: 500px;
+            margin: 0 20px;
+        }
+        
+        .topbar-search input {
+            width: 100%;
+            padding: 8px 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+        }
+        
+        .topbar-search input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: white;
+        }
+        
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-left: auto;
+        }
+        
+        .topbar-icon {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 5px;
+            position: relative;
+        }
+        
+        .topbar-icon:hover {
+            color: var(--primary-color);
+        }
+        
+        .badge-notification {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-dropdown {
+            position: relative;
+        }
+        
+        .user-dropdown-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 6px;
+        }
+        
+        .user-dropdown-toggle:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), #0d6efd);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+        
+        .dropdown-menu-custom {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 200px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        .dropdown-menu-custom.show {
+            display: block;
+        }
+        
+        .dropdown-item-custom {
+            padding: 10px 15px;
+            color: #495057;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .dropdown-item-custom:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .dropdown-divider-custom {
+            height: 1px;
+            background-color: #dee2e6;
+            margin: 5px 0;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: var(--topbar-height);
+            left: 0;
+            bottom: 0;
+            width: var(--sidebar-width);
+            background-color: white;
+            border-right: 1px solid #e9ecef;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+            z-index: 1020;
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        
+        .sidebar-item {
+            padding: 12px 20px;
+            color: #495057;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .sidebar-item:hover {
+            background-color: #f8f9fa;
+            color: var(--primary-color);
+        }
+        
+        .sidebar-item.active {
+            background-color: #e7f5f7;
+            color: var(--primary-color);
+            border-right: 3px solid var(--primary-color);
+        }
+        
+        .sidebar-item i {
+            font-size: 1.1rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-divider {
+            height: 1px;
+            background-color: #e9ecef;
+            margin: 15px 0;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--topbar-height);
+            padding: 30px;
+            transition: margin-left 0.3s ease;
+            min-height: calc(100vh - var(--topbar-height));
+        }
+        
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        
+        /* Breadcrumb */
+        .breadcrumb-custom {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            color: #6c757d;
+        }
+        
+        .breadcrumb-custom a {
+            color: #6c757d;
+            text-decoration: none;
+        }
+        
+        .breadcrumb-custom a:hover {
+            color: var(--primary-color);
+        }
+        
+        /* Overlay for mobile */
+        .sidebar-overlay {
+            position: fixed;
+            top: var(--topbar-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 1010;
+        }
+        
+        .sidebar-overlay.show {
+            display: block;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+            
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .topbar-search {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .topbar {
+                padding: 0 10px;
+            }
+            
+            .topbar-brand span {
+                display: none;
+            }
+            
+            .main-content {
+                padding: 15px;
+            }
+        }
+        
+        /* Custom scrollbar */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .sidebar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Topbar -->
+    <div class="topbar">
+        <button class="menu-toggle" id="menuToggle">
+            <i class="bi bi-list"></i>
+        </button>
+        
+        <a href="#" class="topbar-brand">
+            <i class="bi bi-box-seam"></i>
+            <span>Cargo Tracking</span>
+        </a>
+        
+        <div class="topbar-search">
+            <input type="text" placeholder="Search cargo, suppliers, warehouses..." class="form-control">
+        </div>
+        
+        <div class="topbar-right">
+            <a href="https://github.com/yourusername/cargo-tracking" target="_blank" style="text-decoration: none; color: #6c757d; display: flex; align-items: center; gap: 5px;">
+                <span style="font-size: 0.9rem;">Open source</span>
+                <i class="bi bi-heart-fill" style="color: #dc3545;"></i>
+            </a>
+            
+            <button class="topbar-icon" title="Settings">
+                <i class="bi bi-gear"></i>
+            </button>
+            
+            <button class="topbar-icon" title="Notifications">
+                <i class="bi bi-bell"></i>
+                <span class="badge-notification">5</span>
+            </button>
+            
+            <button class="topbar-icon" title="Alerts">
+                <i class="bi bi-exclamation-circle"></i>
+                <span class="badge-notification">3</span>
+            </button>
+            
+            <div class="user-dropdown">
+                <button class="user-dropdown-toggle" id="userDropdownToggle">
+                    <div class="user-avatar">{{ user.first_name.0|default:'A' }}{{ user.last_name.0|default:'U' }}</div>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                
+                <div class="dropdown-menu-custom" id="userDropdownMenu">
+                    <a href="#" class="dropdown-item-custom">
+                        <i class="bi bi-person"></i>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="dropdown-item-custom">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                    <div class="dropdown-divider-custom"></div>
+                    <a href="#" class="dropdown-item-custom" style="color: #dc3545;">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-menu">
+            <a href="#" class="sidebar-item active">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+            
+            <div class="sidebar-divider"></div>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-box-seam"></i>
+                <span>Cargo Tracking</span>
+            </a>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-truck"></i>
+                <span>Suppliers</span>
+            </a>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-building"></i>
+                <span>Warehouses</span>
+            </a>
+            
+            <div class="sidebar-divider"></div>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-grid"></i>
+                <span>Categories</span>
+            </a>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-geo-alt"></i>
+                <span>Counties</span>
+            </a>
+            
+            <div class="sidebar-divider"></div>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-graph-up"></i>
+                <span>Supplier Performance</span>
+            </a>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-bar-chart"></i>
+                <span>Reports</span>
+            </a>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-bell"></i>
+                <span>Alerts</span>
+            </a>
+            
+            <div class="sidebar-divider"></div>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-question-circle"></i>
+                <span>Help</span>
+            </a>
+            
+            <a href="#" class="sidebar-item">
+                <i class="bi bi-file-text"></i>
+                <span>Documentation</span>
+            </a>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+        {% if messages %}
+            <div class="messages-container mb-3">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        
+        
+        {% block content %}
+        <!-- Page content goes here -->
+        {% endblock %}
+    </main>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Sidebar toggle functionality
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
+        function toggleSidebar() {
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                sidebar.classList.toggle('show');
+                sidebarOverlay.classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            }
+        }
+        
+        menuToggle.addEventListener('click', toggleSidebar);
+        
+        // Close sidebar when clicking overlay (mobile only)
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('show');
+            sidebarOverlay.classList.remove('show');
+        });
+        
+        // User dropdown toggle
+        const userDropdownToggle = document.getElementById('userDropdownToggle');
+        const userDropdownMenu = document.getElementById('userDropdownMenu');
+        
+        userDropdownToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdownMenu.classList.toggle('show');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!userDropdownToggle.contains(e.target) && !userDropdownMenu.contains(e.target)) {
+                userDropdownMenu.classList.remove('show');
+            }
+        });
+        
+        // Set active sidebar item based on current URL
+        const currentPath = window.location.pathname;
+        const sidebarItems = document.querySelectorAll('.sidebar-item');
+        
+        sidebarItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.getAttribute('href') === currentPath) {
+                item.classList.add('active');
+            }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                sidebarOverlay.classList.remove('show');
+                sidebar.classList.remove('show');
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
