@@ -1,62 +1,155 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Cargo Tracking MIS</title>
+    <link rel="icon" type="image/png" href="{% static 'img/logo.png' %}">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyan: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#06b6d4',
+                            600: '#4e73df',
+                            700: '#2e59d9',
+                            800: '#1e40af',
+                        },
+                        primary: {
+                            50: '#f0f9ff',
+                            600: '#4e73df',
+                            700: '#2e59d9',
+                        }
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'soft': '0 2px 15px -3px rgba(0, 0, 0, 0.07), 0 10px 20px -2px rgba(0, 0, 0, 0.04)',
+                        'card': '0 4px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
         }
         
         .login-container {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
+            background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%234e73df' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+            border-radius: 5px;
         }
         
-        .login-header {
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-            color: white;
-            padding: 2rem;
-            text-align: center;
+        .form-input {
+            transition: all 0.3s ease;
+            padding-left: 3rem;
         }
         
-        .login-body {
-            padding: 2rem;
+        .form-input:focus {
+            box-shadow: 0 0 0 3px rgba(78, 115, 223, 0.15);
         }
         
-        .system-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #3498db;
+        .password-toggle {
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6b7280;
+            transition: color 0.2s;
+        }
+        
+        .password-toggle:hover {
+            color: #4e73df;
         }
         
         .btn-login {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            border: none;
-            padding: 0.75rem 2rem;
-            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
         
         .btn-login:hover {
-            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: 0 7px 14px rgba(78, 115, 223, 0.25);
         }
         
-        .form-control:focus {
-            border-color: #3498db;
-            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .checkbox-custom {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid #d1d5db;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .checkbox-custom.checked {
+            background-color: #4e73df;
+            border-color: #4e73df;
+        }
+        
+        .checkbox-custom.checked::after {
+            content: "✓";
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .message-success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border-left: 4px solid #10b981;
+        }
+        
+        .message-error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left: 4px solid #ef4444;
+        }
+        
+        .logo-icon {
+            background: linear-gradient(135deg, #4e73df 0%, #2e59d9 100%);
+        }
+        
+        .input-icon {
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+        
+        .floating-label {
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+        
+        .form-input:focus + .floating-label,
+        .form-input:not(:placeholder-shown) + .floating-label {
+            top: -8px;
+            left: 12px;
+            font-size: 0.75rem;
+            background: white;
+            padding: 0 4px;
+            color: #4e73df;
         }
         
         .feature-list {
@@ -79,199 +172,280 @@
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-10 col-lg-8">
-                <div class="login-container">
-                    <div class="row g-0">
-                        <!-- Login Form Section -->
-                        <div class="col-md-6">
-                            <div class="login-body">
-                                <div class="text-center mb-4">
-                                    <i class="fas fa-shipping-fast system-icon"></i>
-                                    <h3 class="fw-bold text-dark">Cargo Tracking MIS</h3>
-                                    <p class="text-muted">Sign in to your account</p>
+<body class="bg-gray-50">
+    <div class="login-container mx-auto min-h-screen flex flex-col justify-center items-center px-6 pt-8">
+        <!-- Logo Section -->
+        <div class="w-full max-w-4xl flex justify-center mb-8">
+            <div class="flex items-center space-x-3">
+                <div class="logo-icon rounded-xl p-3 shadow-soft">
+                    <i class="bi bi-truck text-white text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Cargo Tracking MIS</h1>
+                    <p class="text-sm text-gray-500">Management Information System</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Login Card -->
+        <div class="bg-white shadow-card w-full max-w-4xl overflow-hidden border border-gray-100" style="border-radius: 5px;">
+            <div class="flex flex-col md:flex-row">
+                <!-- Login Form Section -->
+                <div class="w-full md:w-1/2 p-8">
+                    <!-- Header -->
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-bold text-gray-800">Welcome Back</h2>
+                        <p class="text-gray-600 mt-2">Sign in to your account to continue</p>
+                    </div>
+                    
+                    <!-- Messages -->
+                    {% if messages %}
+                        <div class="mb-6 space-y-3">
+                            {% for message in messages %}
+                                <div class="p-4 rounded-lg {% if message.tags == 'error' %}message-error{% else %}message-success{% endif %}">
+                                    <div class="flex items-center">
+                                        <i class="bi {% if message.tags == 'error' %}bi-exclamation-circle{% else %}bi-check-circle{% endif %} mr-2"></i>
+                                        <span class="text-sm font-medium">{{ message }}</span>
+                                    </div>
                                 </div>
-
-                                <!-- Messages -->
-                                {% if messages %}
-                                <div class="messages mb-3">
-                                    {% for message in messages %}
-                                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                                        {{ message }}
-                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-
-                                <form method="post" novalidate>
-                                    {% csrf_token %}
-                                    
-                                    <div class="mb-3">
-                                        <label for="id_username" class="form-label">
-                                            <i class="fas fa-user me-2"></i>Username
-                                        </label>
-                                        <input type="text" 
-                                               name="username" 
-                                               class="form-control form-control-lg {% if form.username.errors %}is-invalid{% endif %}" 
-                                               id="id_username" 
-                                               placeholder="Enter your username"
-                                               required>
-                                        {% if form.username.errors %}
-                                        <div class="invalid-feedback">
-                                            {% for error in form.username.errors %}
-                                                {{ error }}
-                                            {% endfor %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="id_password" class="form-label">
-                                            <i class="fas fa-lock me-2"></i>Password
-                                        </label>
-                                        <input type="password" 
-                                               name="password" 
-                                               class="form-control form-control-lg {% if form.password.errors %}is-invalid{% endif %}" 
-                                               id="id_password" 
-                                               placeholder="Enter your password"
-                                               required>
-                                        {% if form.password.errors %}
-                                        <div class="invalid-feedback">
-                                            {% for error in form.password.errors %}
-                                                {{ error }}
-                                            {% endfor %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="mb-3 form-check">
-                                        <input type="checkbox" class="form-check-input" id="rememberMe">
-                                        <label class="form-check-label" for="rememberMe">
-                                            Remember me
-                                        </label>
-                                    </div>
-
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-login btn-lg">
-                                            <i class="fas fa-sign-in-alt me-2"></i>Sign In
-                                        </button>
-                                    </div>
-                                </form>
-
-                                <div class="text-center mt-3">
-                                    <a href="#" class="text-decoration-none">
-                                        <i class="fas fa-key me-1"></i>Forgot your password?
-                                    </a>
-                                </div>
-
-                                <hr class="my-4">
-
-                                <div class="text-center">
-                                    <small class="text-muted">
-                                        &copy; {{ current_year }} Cargo Tracking MIS. All rights reserved.
-                                    </small>
-                                </div>
-                            </div>
+                            {% endfor %}
                         </div>
+                    {% endif %}
+                    
+                    <!-- Login Form -->
+                    <form class="space-y-6" method="POST" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Username Field -->
+                        <div class="relative">
+                            <div class="relative">
+                               
+                                <input 
+                                    type="text" 
+                                    name="username" 
+                                    id="username" 
+                                    class="form-input bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-3.5 {% if form.username.errors %}border-red-500{% endif %}" 
+                                    placeholder=" "
+                                    required
+                                    autocomplete="username"
+                                >
+                                <label for="username" class="floating-label absolute left-3 top-3.5 text-gray-500 text-sm">Your username</label>
+                            </div>
+                            {% if form.username.errors %}
+                            <div class="text-red-500 text-xs mt-1 ml-1">
+                                {% for error in form.username.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Password Field -->
+                        <div class="relative">
+                            <div class="relative">
+                               
+                                <input 
+                                    type="password" 
+                                    name="password" 
+                                    id="password" 
+                                    class="form-input bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-3.5 pr-10 {% if form.password.errors %}border-red-500{% endif %}" 
+                                    placeholder=" "
+                                    required
+                                    autocomplete="current-password"
+                                >
+                                <label for="password" class="floating-label absolute left-3 top-3.5 text-gray-500 text-sm">Your password</label>
+                                <span class="password-toggle absolute" id="togglePassword">
+                                    <i class="bi bi-eye" id="eyeIcon"></i>
+                                </span>
+                            </div>
+                            {% if form.password.errors %}
+                            <div class="text-red-500 text-xs mt-1 ml-1">
+                                {% for error in form.password.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Remember Me & Forgot Password -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <input 
+                                    type="checkbox" 
+                                    id="remember" 
+                                    name="remember" 
+                                    class="hidden"
+                                >
+                                <label for="remember" class="flex items-center cursor-pointer">
+                                    <div class="checkbox-custom mr-2"></div>
+                                    <span class="text-sm text-gray-700">Remember me</span>
+                                </label>
+                            </div>
+                            <a href="#" class="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">
+                                Forgot password?
+                            </a>
+                        </div>
+                        
+                        <!-- Submit Button -->
+                        <button type="submit" class="btn-login w-full text-white bg-primary-600 hover:bg-primary-700 focus:ring-4 focus:ring-primary-200 font-medium rounded-lg text-sm px-5 py-3.5 text-center">
+                            <i class="bi bi-box-arrow-in-right mr-2"></i>Sign in to your account
+                        </button>
+                        
+                        <!-- Register Link -->
+                        <div class="text-center text-sm text-gray-600">
+                            Don't have an account? 
+                            <a href="#" class="font-medium text-primary-600 hover:text-primary-700 transition-colors">
+                                Contact administrator
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- System Info Section -->
+                <div class="w-full md:w-1/2 bg-gray-50 p-8 border-t md:border-t-0 md:border-l border-gray-200">
+                    <h5 class="font-bold mb-4 text-primary-700 text-lg">
+                        <i class="bi bi-info-circle me-2"></i>System Features
+                    </h5>
+                    
+                    <ul class="feature-list">
+                        <li class="flex items-start py-2">
+                            <i class="bi bi-check-circle-fill text-green-500 mt-0.5 mr-2"></i>
+                            <span>Real-time Cargo Tracking</span>
+                        </li>
+                        <li class="flex items-start py-2">
+                            <i class="bi bi-check-circle-fill text-green-500 mt-0.5 mr-2"></i>
+                            <span>Supplier Performance Analytics</span>
+                        </li>
+                        <li class="flex items-start py-2">
+                            <i class="bi bi-check-circle-fill text-green-500 mt-0.5 mr-2"></i>
+                            <span>Warehouse Management</span>
+                        </li>
+                        <li class="flex items-start py-2">
+                            <i class="bi bi-check-circle-fill text-green-500 mt-0.5 mr-2"></i>
+                            <span>Delivery Status Updates</span>
+                        </li>
+                        <li class="flex items-start py-2">
+                            <i class="bi bi-check-circle-fill text-green-500 mt-0.5 mr-2"></i>
+                            <span>Automated Alerts & Notifications</span>
+                        </li>
+                        <li class="flex items-start py-2">
+                            <i class="bi bi-check-circle-fill text-green-500 mt-0.5 mr-2"></i>
+                            <span>Comprehensive Reporting</span>
+                        </li>
+                    </ul>
 
-                        <!-- System Info Section -->
-                        <div class="col-md-6 bg-light">
-                            <div class="p-4">
-                                <h5 class="fw-bold mb-4 text-primary">
-                                    <i class="fas fa-info-circle me-2"></i>System Features
-                                </h5>
-                                
-                                <ul class="feature-list">
-                                    <li>
-                                        <i class="fas fa-check-circle"></i>
-                                        Real-time Cargo Tracking
-                                    </li>
-                                    <li>
-                                        <i class="fas fa-check-circle"></i>
-                                        Supplier Performance Analytics
-                                    </li>
-                                    <li>
-                                        <i class="fas fa-check-circle"></i>
-                                        Warehouse Management
-                                    </li>
-                                    <li>
-                                        <i class="fas fa-check-circle"></i>
-                                        Delivery Status Updates
-                                    </li>
-                                    <li>
-                                        <i class="fas fa-check-circle"></i>
-                                        Automated Alerts & Notifications
-                                    </li>
-                                    <li>
-                                        <i class="fas fa-check-circle"></i>
-                                        Comprehensive Reporting
-                                    </li>
-                                </ul>
+                    <div class="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                        <h6 class="font-bold text-gray-800 mb-2">
+                            <i class="bi bi-shield-check me-2"></i>Security Notice
+                        </h6>
+                        <p class="text-sm text-gray-600">
+                            This system contains sensitive cargo and supplier information. 
+                            Please ensure you log out after your session and do not share 
+                            your credentials.
+                        </p>
+                    </div>
 
-                                <div class="mt-4 p-3 bg-white rounded">
-                                    <h6 class="fw-bold text-dark mb-3">
-                                        <i class="fas fa-shield-alt me-2"></i>Security Notice
-                                    </h6>
-                                    <small class="text-muted">
-                                        This system contains sensitive cargo and supplier information. 
-                                        Please ensure you log out after your session and do not share 
-                                        your credentials.
-                                    </small>
-                                </div>
-
-                                <div class="mt-4 text-center">
-                                    <div class="row text-muted">
-                                        <div class="col-4">
-                                            <small>
-                                                <i class="fas fa-database"></i><br>
-                                                Secure
-                                            </small>
-                                        </div>
-                                        <div class="col-4">
-                                            <small>
-                                                <i class="fas fa-bolt"></i><br>
-                                                Fast
-                                            </small>
-                                        </div>
-                                        <div class="col-4">
-                                            <small>
-                                                <i class="fas fa-chart-line"></i><br>
-                                                Reliable
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="mt-6 text-center">
+                        <div class="flex justify-around text-gray-600">
+                            <div class="text-center">
+                                <i class="bi bi-shield-check text-lg block mb-1"></i>
+                                <small class="text-xs">Secure</small>
+                            </div>
+                            <div class="text-center">
+                                <i class="bi bi-lightning text-lg block mb-1"></i>
+                                <small class="text-xs">Fast</small>
+                            </div>
+                            <div class="text-center">
+                                <i class="bi bi-graph-up text-lg block mb-1"></i>
+                                <small class="text-xs">Reliable</small>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            
+            <!-- Footer -->
+            <div class="bg-gray-50 px-8 py-4 border-t border-gray-200">
+                <div class="flex items-center justify-center text-xs text-gray-500">
+                    <i class="bi bi-shield-check mr-1"></i>
+                    <span>Secure login with industry-standard encryption</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Copyright -->
+        <div class="mt-8 text-center text-xs text-gray-500">
+            <p>&copy; {{ current_year }} Cargo Tracking MIS. All rights reserved.</p>
         </div>
     </div>
 
-    <!-- Bootstrap & jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
-        $(document).ready(function() {
+        // Toggle password visibility
+        document.addEventListener('DOMContentLoaded', function() {
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (togglePassword && passwordInput) {
+                togglePassword.addEventListener('click', function() {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    
+                    // Toggle eye icon
+                    if (type === 'text') {
+                        eyeIcon.classList.remove('bi-eye');
+                        eyeIcon.classList.add('bi-eye-slash');
+                    } else {
+                        eyeIcon.classList.remove('bi-eye-slash');
+                        eyeIcon.classList.add('bi-eye');
+                    }
+                });
+            }
+            
+            // Custom checkbox functionality
+            const rememberCheckbox = document.getElementById('remember');
+            const customCheckbox = document.querySelector('.checkbox-custom');
+            
+            if (rememberCheckbox && customCheckbox) {
+                customCheckbox.addEventListener('click', function() {
+                    rememberCheckbox.checked = !rememberCheckbox.checked;
+                    customCheckbox.classList.toggle('checked', rememberCheckbox.checked);
+                });
+                
+                // Set initial state
+                customCheckbox.classList.toggle('checked', rememberCheckbox.checked);
+            }
+            
+            // Add floating label functionality
+            const inputs = document.querySelectorAll('.form-input');
+            inputs.forEach(input => {
+                // Set initial state
+                if (input.value) {
+                    input.nextElementSibling.classList.add('active');
+                }
+                
+                input.addEventListener('focus', function() {
+                    this.nextElementSibling.classList.add('active');
+                });
+                
+                input.addEventListener('blur', function() {
+                    if (!this.value) {
+                        this.nextElementSibling.classList.remove('active');
+                    }
+                });
+            });
+            
             // Auto-hide alerts after 5 seconds
             setTimeout(function() {
-                $('.alert').fadeOut('slow');
+                const alerts = document.querySelectorAll('.p-4.rounded-lg');
+                alerts.forEach(alert => {
+                    alert.style.transition = 'opacity 0.5s ease';
+                    alert.style.opacity = '0';
+                    setTimeout(() => {
+                        alert.style.display = 'none';
+                    }, 500);
+                });
             }, 5000);
-
-            // Focus on username field
-            $('#id_username').focus();
-
-            // Add loading state to form submission
-            $('form').on('submit', function() {
-                var btn = $(this).find('button[type="submit"]');
-                btn.html('<i class="fas fa-spinner fa-spin me-2"></i>Signing In...');
-                btn.prop('disabled', true);
-            });
         });
     </script>
 </body>
