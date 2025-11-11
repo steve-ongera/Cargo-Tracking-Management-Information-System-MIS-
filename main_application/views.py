@@ -1452,24 +1452,188 @@ def supplier_performance(request):
     return render(request, 'analytics/supplier_performance.html', context)
 
 
+"""
+Updated Django Views for Cargo Tracking System
+Includes automatic report generation and proper chart data handling
+"""
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum, Avg, Q, Max, Min, F
+from django.db.models.functions import TruncMonth, TruncDate
+from django.core.paginator import Paginator
+from django.utils import timezone
+from datetime import datetime, timedelta
+from decimal import Decimal
+import json
+
+from .models import (
+    CargoCategory, Cargo, Supplier, Warehouse, 
+    SupplierPerformance, Report, Alert
+)
+
+
+# ============================================
+# AUTOMATIC REPORT GENERATION FUNCTION
+# ============================================
+
+@login_required
+def generate_automatic_reports(request):
+    """
+    Generate all automatic reports with current system data
+    """
+    today = timezone.now().date()
+    start_of_month = today.replace(day=1)
+    
+    # Generate Supplier Performance Report
+    supplier_performances = SupplierPerformance.objects.select_related('supplier').all()
+    supplier_report_data = {
+        'total_suppliers': supplier_performances.count(),
+        'top_performers': list(
+            supplier_performances.order_by('-overall_performance_score')[:10]
+            .values('supplier__name', 'overall_performance_score', 'on_time_delivery_rate')
+        ),
+        'statistics': {
+            'avg_performance_score': float(supplier_performances.aggregate(
+                avg=Avg('overall_performance_score'))['avg'] or 0),
+            'total_deliveries': supplier_performances.aggregate(
+                total=Sum('total_deliveries'))['total'] or 0,
+            'on_time_deliveries': supplier_performances.aggregate(
+                total=Sum('on_time_deliveries'))['total'] or 0,
+        }
+    }
+    
+    Report.objects.create(
+        report_type='SUPPLIER_PERFORMANCE',
+        title=f'Supplier Performance Report - {today.strftime("%B %Y")}',
+        description='Automatically generated monthly supplier performance analysis',
+        start_date=start_of_month,
+        end_date=today,
+        report_data=supplier_report_data,
+        created_by=request.user
+    )
+    
+    # Generate Cargo Movement Report
+    cargo_stats = Cargo.objects.aggregate(
+        total=Count('id'),
+        in_transit=Count('id', filter=Q(status='IN_TRANSIT')),
+        delivered=Count('id', filter=Q(status='RECEIVED')),
+        delayed=Count('id', filter=Q(is_delayed=True)),
+        total_weight=Sum('weight_kg'),
+        total_value=Sum('declared_value')
+    )
+    
+    cargo_report_data = {
+        'summary': cargo_stats,
+        'by_status': list(
+            Cargo.objects.values('status')
+            .annotate(count=Count('id'), total_value=Sum('declared_value'))
+            .order_by('-count')
+        ),
+        'by_warehouse': list(
+            Cargo.objects.values('warehouse__name')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:10]
+        ),
+    }
+    
+    Report.objects.create(
+        report_type='CARGO_MOVEMENT',
+        title=f'Cargo Movement Report - {today.strftime("%B %Y")}',
+        description='Automatically generated cargo movement analysis',
+        start_date=start_of_month,
+        end_date=today,
+        report_data=cargo_report_data,
+        created_by=request.user
+    )
+    
+    # Generate Delivery Analysis Report
+    delivery_data = {
+        'on_time_deliveries': Cargo.objects.filter(
+            is_delayed=False, status='RECEIVED'
+        ).count(),
+        'delayed_deliveries': Cargo.objects.filter(is_delayed=True).count(),
+        'average_delivery_time': float(
+            Cargo.objects.filter(delivery_duration_hours__isnull=False)
+            .aggregate(avg=Avg('delivery_duration_hours'))['avg'] or 0
+        ),
+        'by_supplier': list(
+            Cargo.objects.values('supplier__name')
+            .annotate(
+                total=Count('id'),
+                delayed=Count('id', filter=Q(is_delayed=True))
+            )
+            .order_by('-total')[:10]
+        )
+    }
+    
+    Report.objects.create(
+        report_type='DELIVERY_ANALYSIS',
+        title=f'Delivery Analysis Report - {today.strftime("%B %Y")}',
+        description='Automatically generated delivery performance analysis',
+        start_date=start_of_month,
+        end_date=today,
+        report_data=delivery_data,
+        created_by=request.user
+    )
+    
+    # Generate Monthly Summary Report
+    monthly_summary = {
+        'total_cargos': Cargo.objects.filter(
+            dispatch_date__gte=start_of_month
+        ).count(),
+        'total_value': float(
+            Cargo.objects.filter(dispatch_date__gte=start_of_month)
+            .aggregate(total=Sum('declared_value'))['total'] or 0
+        ),
+        'active_suppliers': Supplier.objects.filter(status='ACTIVE').count(),
+        'warehouses': Warehouse.objects.filter(is_active=True).count(),
+        'alerts': Alert.objects.filter(
+            is_resolved=False, 
+            created_at__gte=start_of_month
+        ).count(),
+    }
+    
+    Report.objects.create(
+        report_type='MONTHLY_SUMMARY',
+        title=f'Monthly Summary - {today.strftime("%B %Y")}',
+        description='Automatically generated monthly system summary',
+        start_date=start_of_month,
+        end_date=today,
+        report_data=monthly_summary,
+        created_by=request.user
+    )
+    
+    return redirect('reports_list')
+
+
+
+# ============================================
+# REPORTS LIST VIEW
+# ============================================
+
 @login_required
 def reports_list(request):
     """List all generated reports with analytics charts."""
     reports = Report.objects.all().order_by('-created_at')
 
-    # --- Chart 1: Reports by Type ---
+    # Chart 1: Reports by Type
     reports_by_type = (
         Report.objects.values('report_type')
         .annotate(count=Count('id'))
         .order_by('-count')
     )
+    
     type_chart_data = {
-        'labels': [r['report_type'].replace('_', ' ').title() for r in reports_by_type],
+        'labels': [
+            r['report_type'].replace('_', ' ').title() 
+            for r in reports_by_type
+        ],
         'counts': [r['count'] for r in reports_by_type],
     }
 
-    # --- Chart 2: Reports Created Over the Last 12 Months ---
-    twelve_months_ago = datetime.now() - timedelta(days=365)
+    # Chart 2: Reports Created Over the Last 12 Months
+    twelve_months_ago = timezone.now() - timedelta(days=365)
     monthly_reports = (
         Report.objects.filter(created_at__gte=twelve_months_ago)
         .annotate(month=TruncMonth('created_at'))
@@ -1477,41 +1641,39 @@ def reports_list(request):
         .annotate(count=Count('id'))
         .order_by('month')
     )
+    
     timeline_data = {
         'labels': [mr['month'].strftime('%b %Y') for mr in monthly_reports],
         'counts': [mr['count'] for mr in monthly_reports],
     }
 
-    # --- Simple Stats ---
+    # Simple Stats
     total_reports = reports.count()
     supplier_reports = reports.filter(report_type='SUPPLIER_PERFORMANCE').count()
     cargo_reports = reports.filter(report_type='CARGO_MOVEMENT').count()
     monthly_reports_count = reports.filter(report_type='MONTHLY_SUMMARY').count()
 
-    # Convert to JSON safely
-    def safe_json(data):
-        """Converts Decimal and datetime safely to JSON"""
-        def default(o):
-            import decimal, datetime
-            if isinstance(o, decimal.Decimal):
-                return float(o)
-            if isinstance(o, (datetime.date, datetime.datetime)):
-                return o.isoformat()
-            return str(o)
-        return json.dumps(data, default=default)
+    # Pagination
+    paginator = Paginator(reports, 20)
+    page_number = request.GET.get('page', 1)
+    reports_page = paginator.get_page(page_number)
 
     context = {
-        'reports': reports,
+        'reports': reports_page,
         'total_reports': total_reports,
         'supplier_reports': supplier_reports,
         'cargo_reports': cargo_reports,
         'monthly_reports_count': monthly_reports_count,
-        'type_chart_data': safe_json(type_chart_data),
-        'timeline_data': safe_json(timeline_data),
+        'type_chart_data': json.dumps(type_chart_data),
+        'timeline_data': json.dumps(timeline_data),
     }
 
     return render(request, 'reports/list.html', context)
 
+
+# ============================================
+# REPORT DETAIL VIEW
+# ============================================
 
 @login_required
 def report_detail(request, report_id):
@@ -1519,18 +1681,7 @@ def report_detail(request, report_id):
     report = get_object_or_404(Report, id=report_id)
     context = {'report': report}
 
-    def safe_json(data):
-        """Helper to safely convert Decimal to JSON"""
-        def default(o):
-            import decimal, datetime
-            if isinstance(o, decimal.Decimal):
-                return float(o)
-            if isinstance(o, (datetime.date, datetime.datetime)):
-                return o.isoformat()
-            return str(o)
-        return json.dumps(data, default=default)
-
-    # --- Supplier Performance Report ---
+    # Supplier Performance Report
     if report.report_type == 'SUPPLIER_PERFORMANCE':
         performances = (
             SupplierPerformance.objects.select_related('supplier')
@@ -1540,40 +1691,32 @@ def report_detail(request, report_id):
             'labels': [p.supplier.name for p in performances],
             'scores': [float(p.overall_performance_score) for p in performances],
         }
-        context['performance_chart'] = safe_json(performance_chart)
+        context['performance_chart'] = json.dumps(performance_chart)
+        context['performances'] = performances
 
-    # --- Cargo Movement Report ---
+    # Cargo Movement Report
     elif report.report_type == 'CARGO_MOVEMENT':
-        from .models import Cargo
-        cargos = Cargo.objects.order_by('-dispatch_date')[:20]
+        cargos = Cargo.objects.select_related('supplier', 'warehouse').order_by('-dispatch_date')[:20]
         cargo_chart = {
             'labels': [c.cargo_id for c in cargos],
             'weights': [float(c.weight_kg) for c in cargos],
         }
-        context['cargo_chart'] = safe_json(cargo_chart)
+        context['cargo_chart'] = json.dumps(cargo_chart)
+        context['cargos'] = cargos
 
-    # --- Inventory Summary Report ---
-    elif report.report_type == 'INVENTORY_SUMMARY':
-        from .models import Inventory
-        items = Inventory.objects.select_related('product').order_by('-quantity')[:15]
-        inventory_chart = {
-            'labels': [item.product.name for item in items],
-            'quantities': [item.quantity for item in items],
-        }
-        context['inventory_chart'] = safe_json(inventory_chart)
-
-    # --- Delivery Analysis Report ---
+    # Delivery Analysis Report
     elif report.report_type == 'DELIVERY_ANALYSIS':
-        from .models import Cargo
         delayed = Cargo.objects.filter(is_delayed=True).count()
-        on_time = Cargo.objects.filter(is_delayed=False).count()
+        on_time = Cargo.objects.filter(is_delayed=False, status='RECEIVED').count()
         delivery_chart = {
             'labels': ['On-Time', 'Delayed'],
             'counts': [on_time, delayed],
         }
-        context['delivery_chart'] = safe_json(delivery_chart)
+        context['delivery_chart'] = json.dumps(delivery_chart)
 
     return render(request, 'reports/detail.html', context)
+
+
 
 @login_required
 def alerts_list(request):

@@ -30,8 +30,11 @@ urlpatterns = [
     path('counties/<int:county_id>/delete/', views.county_delete, name='county_delete'),
 
     path('analytics/supplier-performance/', views.supplier_performance, name='supplier_performance'),
+    # Reports
     path('reports/', views.reports_list, name='reports_list'),
     path('reports/<int:report_id>/', views.report_detail, name='report_detail'),
+    path('reports/generate/', views.generate_automatic_reports, name='generate_reports'),
+    
     path('alerts/', views.alerts_list, name='alerts_list'),
     path('alerts/<int:alert_id>/resolve/', views.mark_alert_resolved, name='mark_alert_resolved'),
     path('help/', views.help_page, name='help_page'),
