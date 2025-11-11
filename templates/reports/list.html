@@ -117,7 +117,7 @@
         <h1 style="font-size: 28px; font-weight: bold; color: #111827;">
             Reports Dashboard
         </h1>
-        <a href="{% url 'reports:create' %}" class="btn btn-primary">
+        <a href="#" class="btn btn-primary">
             + Generate New Report
         </a>
     </div>
@@ -196,7 +196,7 @@
                     <td>{{ report.generated_by.get_full_name|default:report.generated_by.username }}</td>
                     <td>
                         <div class="action-buttons">
-                            <a href="{% url 'reports:detail' report.id %}" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">
+                            <a href="{% url 'reports_detail' report.id %}" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">
                                 View
                             </a>
                             {% if report.file_path %}

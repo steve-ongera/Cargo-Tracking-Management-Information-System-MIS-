@@ -164,7 +164,7 @@
 <div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px;">
     <!-- Back Button -->
     <div style="margin-bottom: 20px;">
-        <a href="{% url 'reports:list' %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+        <a href="{% url 'reports_list' %}" style="color: #2563eb; text-decoration: none; font-weight: 500;">
             ← Back to Reports
         </a>
     </div>
@@ -199,7 +199,7 @@
             <button class="btn btn-primary" onclick="window.print()">
                 🖨️ Print Report
             </button>
-            <a href="{% url 'reports:regenerate' report.id %}" class="btn btn-secondary">
+            <a href="#" class="btn btn-secondary">
                 🔄 Regenerate
             </a>
         </div>
