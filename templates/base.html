@@ -436,65 +436,71 @@
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-menu">
-            <a href="#" class="sidebar-item active">
+            <a href="{% url 'dashboard'%}" class="sidebar-item active">
                 <i class="bi bi-speedometer2"></i>
                 <span>Dashboard</span>
             </a>
             
+            <!-- sidebar.html -->
             <div class="sidebar-divider"></div>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'cargo_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'cargo_list' or request.resolver_match.url_name == 'cargo_detail' %}active{% endif %}">
                 <i class="bi bi-box-seam"></i>
                 <span>Cargo Tracking</span>
             </a>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'supplier_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'supplier_list' or request.resolver_match.url_name == 'supplier_detail' %}active{% endif %}">
                 <i class="bi bi-truck"></i>
                 <span>Suppliers</span>
             </a>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'warehouse_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'warehouse_list' or request.resolver_match.url_name == 'warehouse_detail' %}active{% endif %}">
                 <i class="bi bi-building"></i>
                 <span>Warehouses</span>
             </a>
-            
+
             <div class="sidebar-divider"></div>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'category_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'category_list' %}active{% endif %}">
                 <i class="bi bi-grid"></i>
                 <span>Categories</span>
             </a>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'county_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'county_list' %}active{% endif %}">
                 <i class="bi bi-geo-alt"></i>
                 <span>Counties</span>
             </a>
-            
+
             <div class="sidebar-divider"></div>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'supplier_performance' %}" class="sidebar-item {% if request.resolver_match.url_name == 'supplier_performance' %}active{% endif %}">
                 <i class="bi bi-graph-up"></i>
                 <span>Supplier Performance</span>
             </a>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'reports_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'reports_list' or request.resolver_match.url_name == 'report_detail' %}active{% endif %}">
                 <i class="bi bi-bar-chart"></i>
                 <span>Reports</span>
             </a>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'alerts_list' %}" class="sidebar-item {% if request.resolver_match.url_name == 'alerts_list' %}active{% endif %}">
                 <i class="bi bi-bell"></i>
                 <span>Alerts</span>
+                {% with unread_alerts_count=request.user.resolved_alerts.count %}
+                    {% if unread_alerts_count > 0 %}
+                    <span class="sidebar-badge">{{ unread_alerts_count }}</span>
+                    {% endif %}
+                {% endwith %}
             </a>
-            
+
             <div class="sidebar-divider"></div>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'help_page' %}" class="sidebar-item {% if request.resolver_match.url_name == 'help_page' %}active{% endif %}">
                 <i class="bi bi-question-circle"></i>
                 <span>Help</span>
             </a>
-            
-            <a href="#" class="sidebar-item">
+
+            <a href="{% url 'documentation' %}" class="sidebar-item {% if request.resolver_match.url_name == 'documentation' %}active{% endif %}">
                 <i class="bi bi-file-text"></i>
                 <span>Documentation</span>
             </a>

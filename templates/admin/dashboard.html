@@ -1,0 +1,1100 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cargo Tracking Dashboard - MIS System{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+<style>
+    :root {
+        --primary-color: #4e73df;
+        --primary-hover: #2e59d9;
+        --success-color: #1cc88a;
+        --warning-color: #f6c23e;
+        --danger-color: #e74a3b;
+        --info-color: #36b9cc;
+        --light-bg: #f8f9fc;
+        --border-color: #e3e6f0;
+        --text-muted: #858796;
+    }
+    
+    .breadcrumb-custom {
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .breadcrumb-custom a {
+        color: var(--primary-color);
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .breadcrumb-custom a:hover {
+        color: var(--primary-hover);
+    }
+    
+    .breadcrumb-custom span {
+        color: var(--text-muted);
+        margin: 0 8px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 20px;
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .stat-card.primary { border-left-color: var(--primary-color); }
+    .stat-card.success { border-left-color: var(--success-color); }
+    .stat-card.warning { border-left-color: var(--warning-color); }
+    .stat-card.danger { border-left-color: var(--danger-color); }
+    .stat-card.info { border-left-color: var(--info-color); }
+    
+    .stat-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+        float: right;
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #5a5c69;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.5px;
+    }
+    
+    .stat-change {
+        font-size: 0.8rem;
+        margin-top: 5px;
+    }
+    
+    .chart-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 20px;
+    }
+    
+    .chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #5a5c69;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 350px;
+    }
+    
+    .chart-container-small {
+        position: relative;
+        height: 280px;
+    }
+    
+    .table-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    
+    .table-header {
+        background: var(--light-bg);
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--border-color);
+        font-weight: 600;
+        color: #5a5c69;
+    }
+    
+    .page-header {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .table th {
+        font-weight: 600;
+        color: #5a5c69;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border-color);
+        padding: 12px 16px;
+        background: var(--light-bg);
+    }
+    
+    .table td {
+        padding: 12px 16px;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(78, 115, 223, 0.05);
+        cursor: pointer;
+    }
+    
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .status-badge.dispatched { background: #4e73df; color: white; }
+    .status-badge.in-transit { background: #36b9cc; color: white; }
+    .status-badge.arrived { background: #f6c23e; color: #333; }
+    .status-badge.received { background: #1cc88a; color: white; }
+    .status-badge.stored { background: #858796; color: white; }
+    .status-badge.delayed { background: #e74a3b; color: white; }
+    .status-badge.cancelled { background: #d63384; color: white; }
+    .status-badge.damaged { background: #fd7e14; color: white; }
+    
+    .alert-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .alert-badge.critical {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .alert-badge.warning {
+        background: #ffc107;
+        color: #333;
+    }
+    
+    .alert-badge.info {
+        background: #17a2b8;
+        color: white;
+    }
+    
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .trend-indicator.up {
+        color: var(--success-color);
+    }
+    
+    .trend-indicator.down {
+        color: var(--danger-color);
+    }
+
+    .priority-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .priority-badge.urgent { background: #dc3545; color: white; }
+    .priority-badge.high { background: #fd7e14; color: white; }
+    .priority-badge.medium { background: #ffc107; color: #333; }
+    .priority-badge.low { background: #17a2b8; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-custom">
+        <a href="{% url 'dashboard' %}"><i class="bi bi-house-door"></i> Home</a>
+        <span>/</span>
+        <span>Cargo Tracking Dashboard</span>
+    </div>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 mb-1">Cargo Tracking Dashboard</h1>
+                <p class="text-muted mb-0">Real-time shipment monitoring and supplier performance analytics</p>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Print Report
+                </button>
+                <a href="#" class="btn btn-outline-secondary">
+                    <i class="bi bi-download"></i> Export Data
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Key Metrics Row -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card primary">
+                <i class="bi bi-truck stat-icon" style="color: var(--primary-color);"></i>
+                <div class="stat-label">Active Shipments</div>
+                <div class="stat-value">{{ total_active_shipments }}</div>
+                <div class="stat-change">
+                    <small class="text-muted">In Transit & Dispatched</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card success">
+                <i class="bi bi-check-circle stat-icon" style="color: var(--success-color);"></i>
+                <div class="stat-label">Month Deliveries</div>
+                <div class="stat-value">{{ month_deliveries }}</div>
+                <div class="stat-change">
+                    <span class="trend-indicator {% if deliveries_change >= 0 %}up{% else %}down{% endif %}">
+                        <i class="bi bi-arrow-{% if deliveries_change >= 0 %}up{% else %}down{% endif %}"></i> {{ deliveries_change|floatformat:1 }}% vs last month
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card info">
+                <i class="bi bi-currency-dollar stat-icon" style="color: var(--info-color);"></i>
+                <div class="stat-label">Cargo Value in Transit</div>
+                <div class="stat-value">KES {{ cargo_value_in_transit|floatformat:2 }}</div>
+                <div class="stat-change">
+                    <small class="text-muted">{{ total_suppliers }} active suppliers</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6">
+            <div class="stat-card danger">
+                <i class="bi bi-exclamation-triangle stat-icon" style="color: var(--danger-color);"></i>
+                <div class="stat-label">Delayed Shipments</div>
+                <div class="stat-value">{{ delayed_shipments_count }}</div>
+                <div class="stat-change">
+                    <small class="text-muted">Require attention</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Shipments Trend Line Chart -->
+    <div class="row">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-graph-up"></i> Daily Shipments Trend (Last 30 Days)
+                    <span class="badge bg-primary float-end">Live Data</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="shipmentsTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cargo Status & Transport Mode Row -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-pie-chart"></i> Cargo Status Distribution
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="cargoStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-truck-flatbed"></i> Transport Mode Distribution
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="transportModeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Supplier Performance & Warehouse Capacity Row -->
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-trophy"></i> Top 10 Suppliers by Performance Score
+                    <span class="badge bg-success float-end">Best Performers</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="supplierPerformanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-5">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-building"></i> Warehouse Capacity Utilization
+                </div>
+                <div class="chart-container">
+                    <canvas id="warehouseCapacityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Category Distribution & Priority Performance Row -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-boxes"></i> Cargo Value by Category
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-flag"></i> On-Time Delivery by Priority
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="priorityPerformanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Weekly Cargo Value & County Distribution Row -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-calendar-week"></i> Weekly Cargo Value Trend
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="weeklyValueChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-geo-alt"></i> Top 10 Counties by Shipment Volume
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="countyDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average Delivery Time by Transport Mode -->
+    <div class="row">
+        <div class="col-12">
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i class="bi bi-clock-history"></i> Average Delivery Time by Transport Mode (Hours)
+                </div>
+                <div class="chart-container-small">
+                    <canvas id="transportTimeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tables Row -->
+    <div class="row">
+        <!-- Recent Cargo Shipments -->
+        <div class="col-lg-12">
+            <div class="table-card">
+                <div class="table-header">
+                    <i class="bi bi-box-seam"></i> Recent Cargo Shipments
+                    <span class="badge bg-primary float-end">Latest</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Cargo ID</th>
+                                <th>Supplier</th>
+                                <th>Warehouse</th>
+                                <th>Description</th>
+                                <th>Dispatch Date</th>
+                                <th>Expected Arrival</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cargo in recent_cargo %}
+                            <tr>
+                                <td><strong>{{ cargo.cargo_id }}</strong></td>
+                                <td>{{ cargo.supplier.name }}</td>
+                                <td>{{ cargo.warehouse.name }}</td>
+                                <td>{{ cargo.description|truncatewords:8 }}</td>
+                                <td>{{ cargo.dispatch_date|date:"M d, Y" }}</td>
+                                <td>{{ cargo.expected_arrival_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="priority-badge {{ cargo.priority|lower }}">
+                                        {{ cargo.get_priority_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge {{ cargo.status|lower }}">
+                                        {{ cargo.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                    <p class="mb-0">No recent cargo shipments</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delayed Shipments & Active Alerts Row -->
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="table-card">
+                <div class="table-header">
+                    <i class="bi bi-exclamation-circle"></i> Delayed Shipments
+                    <span class="badge bg-danger float-end">{{ delayed_shipments.count }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Cargo ID</th>
+                                <th>Supplier</th>
+                                <th>Warehouse</th>
+                                <th>Expected</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cargo in delayed_shipments %}
+                            <tr>
+                                <td><strong>{{ cargo.cargo_id }}</strong></td>
+                                <td>{{ cargo.supplier.name }}</td>
+                                <td>{{ cargo.warehouse.name }}</td>
+                                <td>{{ cargo.expected_arrival_date|date:"M d, H:i" }}</td>
+                                <td>
+                                    <span class="status-badge delayed">
+                                        Delayed
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                                    <p class="mb-0">No delayed shipments</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-5">
+            <div class="table-card">
+                <div class="table-header">
+                    <i class="bi bi-bell"></i> Active Alerts
+                    <span class="badge bg-warning float-end">{{ active_alerts.count }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Alert</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in active_alerts %}
+                            <tr>
+                                <td>
+                                    <span class="alert-badge {{ alert.severity|lower }}">
+                                        {{ alert.severity }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>{{ alert.title }}</strong><br>
+                                    <small class="text-muted">{{ alert.message|truncatewords:10 }}</small>
+                                </td>
+                                <td>{{ alert.created_at|timesince }} ago</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+                                    <p class="mb-0">No active alerts</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Performing Suppliers Table -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="table-card">
+                <div class="table-header">
+                    <i class="bi bi-star"></i> Top Performing Suppliers
+                    <span class="badge bg-success float-end">Performance Leaders</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Supplier</th>
+                                <th>Performance Score</th>
+                                <th>Total Deliveries</th>
+                                <th>On-Time Deliveries</th>
+                                <th>On-Time Rate</th>
+                                <th>Avg Delivery Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for perf in top_suppliers_table %}
+                            <tr>
+                                <td><strong>{{ perf.supplier.name }}</strong></td>
+                                <td>
+                                    <span class="badge bg-success">
+                                        {{ perf.overall_performance_score|floatformat:2 }}/100
+                                    </span>
+                                </td>
+                                <td>{{ perf.total_deliveries }}</td>
+                                <td>{{ perf.on_time_deliveries }}</td>
+                                <td>{{ perf.on_time_delivery_rate|floatformat:1 }}%</td>
+                                <td>{{ perf.average_delivery_time_hours|floatformat:1 }}h</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                    <p class="mb-0">No supplier performance data available</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Chart.js global configuration
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    Chart.defaults.color = '#858796';
+    
+    const colors = {
+        primary: '#4e73df',
+        success: '#1cc88a',
+        warning: '#f6c23e',
+        danger: '#e74a3b',
+        info: '#36b9cc'
+    };
+    
+    // 1. Daily Shipments Trend (Last 30 Days - Line Chart)
+    const shipmentsTrendData = {{ shipments_trend_30days|safe }};
+    const shipmentsTrendCtx = document.getElementById('shipmentsTrendChart').getContext('2d');
+    new Chart(shipmentsTrendCtx, {
+        type: 'line',
+        data: {
+            labels: shipmentsTrendData.map(d => d.date),
+            datasets: [{
+                label: 'Dispatched',
+                data: shipmentsTrendData.map(d => d.dispatched),
+                borderColor: colors.primary,
+                backgroundColor: colors.primary + '20',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Delivered',
+                data: shipmentsTrendData.map(d => d.delivered),
+                borderColor: colors.success,
+                backgroundColor: colors.success + '20',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' shipments';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 2. Cargo Status Distribution (Donut Chart)
+    const statusLabels = {{ status_labels|safe }};
+    const statusValues = {{ status_values|safe }};
+    const statusColors = {{ status_colors|safe }};
+    
+    const cargoStatusCtx = document.getElementById('cargoStatusChart').getContext('2d');
+    new Chart(cargoStatusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                data: statusValues,
+                backgroundColor: statusColors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 3. Transport Mode Distribution (Donut Chart)
+    const transportLabels = {{ transport_labels|safe }};
+    const transportValues = {{ transport_values|safe }};
+    const transportColors = {{ transport_colors|safe }};
+    
+    const transportModeCtx = document.getElementById('transportModeChart').getContext('2d');
+    new Chart(transportModeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: transportLabels,
+            datasets: [{
+                data: transportValues,
+                backgroundColor: transportColors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 4. Supplier Performance (Bar Chart)
+    const supplierLabels = {{ supplier_labels|safe }};
+    const supplierScores = {{ supplier_scores|safe }};
+    
+    const supplierPerformanceCtx = document.getElementById('supplierPerformanceChart').getContext('2d');
+    new Chart(supplierPerformanceCtx, {
+        type: 'bar',
+        data: {
+            labels: supplierLabels,
+            datasets: [{
+                label: 'Performance Score',
+                data: supplierScores,
+                backgroundColor: colors.success,
+                borderColor: colors.success,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '/100';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Score: ' + context.parsed.x.toFixed(2) + '/100';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 5. Warehouse Capacity Utilization (Bar Chart)
+    const warehouseLabels = {{ warehouse_labels|safe }};
+    const warehouseUtilization = {{ warehouse_utilization|safe }};
+    const warehouseColors = {{ warehouse_colors|safe }};
+    
+    const warehouseCapacityCtx = document.getElementById('warehouseCapacityChart').getContext('2d');
+    new Chart(warehouseCapacityCtx, {
+        type: 'bar',
+        data: {
+            labels: warehouseLabels,
+            datasets: [{
+                label: 'Capacity Utilization (%)',
+                data: warehouseUtilization,
+                backgroundColor: warehouseColors,
+                borderColor: warehouseColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Utilization: ' + context.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 6. Cargo Value by Category (Pie Chart)
+    const categoryLabels = {{ category_labels|safe }};
+    const categoryValues = {{ category_values|safe }};
+    
+    const categoryColors = [
+        colors.primary, colors.success, colors.warning, colors.danger, 
+        colors.info, '#6f42c1', '#fd7e14', '#20c997'
+    ];
+    
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'pie',
+        data: {
+            labels: categoryLabels,
+            datasets: [{
+                data: categoryValues,
+                backgroundColor: categoryColors,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': KES ' + context.parsed.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 7. On-Time Delivery by Priority (Bar Chart)
+    const priorityLabels = {{ priority_labels|safe }};
+    const priorityRates = {{ priority_rates|safe }};
+    
+    const priorityPerformanceCtx = document.getElementById('priorityPerformanceChart').getContext('2d');
+    new Chart(priorityPerformanceCtx, {
+        type: 'bar',
+        data: {
+            labels: priorityLabels,
+            datasets: [{
+                label: 'On-Time Delivery Rate (%)',
+                data: priorityRates,
+                backgroundColor: [
+                    colors.info,
+                    colors.warning,
+                    colors.primary,
+                    colors.danger
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'On-Time Rate: ' + context.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 8. Weekly Cargo Value (Bar Chart)
+    const weeklyData = {{ weekly_data|safe }};
+    
+    const weeklyValueCtx = document.getElementById('weeklyValueChart').getContext('2d');
+    new Chart(weeklyValueCtx, {
+        type: 'bar',
+        data: {
+            labels: weeklyData.map(d => d.week),
+            datasets: [{
+                label: 'Cargo Value (KES)',
+                data: weeklyData.map(d => d.value),
+                backgroundColor: [
+                    colors.primary + '60',
+                    colors.primary + '80',
+                    colors.primary + 'A0',
+                    colors.primary
+                ],
+                borderColor: colors.primary,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Value: KES ' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 9. County Distribution (Horizontal Bar Chart)
+    const countyLabels = {{ county_labels|safe }};
+    const countyValues = {{ county_values|safe }};
+    
+    const countyDistributionCtx = document.getElementById('countyDistributionChart').getContext('2d');
+    new Chart(countyDistributionCtx, {
+        type: 'bar',
+        data: {
+            labels: countyLabels,
+            datasets: [{
+                label: 'Shipments',
+                data: countyValues,
+                backgroundColor: colors.info,
+                borderColor: colors.info,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Shipments: ' + context.parsed.x;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // 10. Average Delivery Time by Transport Mode (Bar Chart)
+    const transportTimeLabels = {{ transport_time_labels|safe }};
+    const transportTimeValues = {{ transport_time_values|safe }};
+    
+    const transportTimeCtx = document.getElementById('transportTimeChart').getContext('2d');
+    new Chart(transportTimeCtx, {
+        type: 'bar',
+        data: {
+            labels: transportTimeLabels,
+            datasets: [{
+                label: 'Average Delivery Time (Hours)',
+                data: transportTimeValues,
+                backgroundColor: colors.warning,
+                borderColor: colors.warning,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + ' hrs';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Avg Time: ' + context.parsed.y.toFixed(2) + ' hours';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

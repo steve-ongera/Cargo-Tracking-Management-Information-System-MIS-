@@ -68,7 +68,7 @@ def logout_view(request):
 
 
 """
-Cargo Tracking Management System - Dashboard Views
+Cargo Tracking Management System - Dashboard Views (FIXED)
 File: main_application/views.py
 """
 
@@ -84,6 +84,14 @@ from .models import (
     Cargo, Supplier, Warehouse, CargoCategory, 
     SupplierPerformance, Alert, CargoStatusHistory
 )
+
+
+# Custom JSON encoder for Decimal objects
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super(DecimalEncoder, self).default(obj)
 
 
 @login_required
@@ -209,7 +217,7 @@ def dashboard(request):
     for wh in warehouses:
         warehouse_labels.append(wh.name[:25])
         utilization_pct = wh.capacity_utilization_percentage
-        warehouse_utilization.append(round(utilization_pct, 2))
+        warehouse_utilization.append(round(float(utilization_pct), 2))
         
         # Color based on utilization
         if utilization_pct >= 90:
@@ -368,7 +376,7 @@ def dashboard(request):
         transport_time_values.append(float(item['avg_hours'] or 0))
     
     # ============================================
-    # CONTEXT DATA
+    # CONTEXT DATA - Using Custom JSON Encoder
     # ============================================
     
     context = {
@@ -380,46 +388,46 @@ def dashboard(request):
         'deliveries_change': deliveries_change,
         
         # Cargo Status Distribution
-        'status_labels': json.dumps(status_labels),
-        'status_values': json.dumps(status_values),
-        'status_colors': json.dumps(status_colors),
+        'status_labels': json.dumps(status_labels, cls=DecimalEncoder),
+        'status_values': json.dumps(status_values, cls=DecimalEncoder),
+        'status_colors': json.dumps(status_colors, cls=DecimalEncoder),
         
         # Daily Shipments Trend
-        'shipments_trend_30days': json.dumps(shipments_trend_30days),
+        'shipments_trend_30days': json.dumps(shipments_trend_30days, cls=DecimalEncoder),
         
         # Supplier Performance
-        'supplier_labels': json.dumps(supplier_labels),
-        'supplier_scores': json.dumps(supplier_scores),
-        'supplier_deliveries': json.dumps(supplier_deliveries),
+        'supplier_labels': json.dumps(supplier_labels, cls=DecimalEncoder),
+        'supplier_scores': json.dumps(supplier_scores, cls=DecimalEncoder),
+        'supplier_deliveries': json.dumps(supplier_deliveries, cls=DecimalEncoder),
         
         # Warehouse Capacity
-        'warehouse_labels': json.dumps(warehouse_labels),
-        'warehouse_utilization': json.dumps(warehouse_utilization),
-        'warehouse_colors': json.dumps(warehouse_colors),
+        'warehouse_labels': json.dumps(warehouse_labels, cls=DecimalEncoder),
+        'warehouse_utilization': json.dumps(warehouse_utilization, cls=DecimalEncoder),
+        'warehouse_colors': json.dumps(warehouse_colors, cls=DecimalEncoder),
         
         # Category Distribution
-        'category_labels': json.dumps(category_labels),
-        'category_values': json.dumps(category_values),
+        'category_labels': json.dumps(category_labels, cls=DecimalEncoder),
+        'category_values': json.dumps(category_values, cls=DecimalEncoder),
         
         # Transport Mode
-        'transport_labels': json.dumps(transport_labels),
-        'transport_values': json.dumps(transport_values),
-        'transport_colors': json.dumps(transport_colors),
+        'transport_labels': json.dumps(transport_labels, cls=DecimalEncoder),
+        'transport_values': json.dumps(transport_values, cls=DecimalEncoder),
+        'transport_colors': json.dumps(transport_colors, cls=DecimalEncoder),
         
         # Weekly Cargo Value
-        'weekly_data': json.dumps(weekly_data),
+        'weekly_data': json.dumps(weekly_data, cls=DecimalEncoder),
         
         # Priority Performance
-        'priority_labels': json.dumps(priority_labels),
-        'priority_rates': json.dumps(priority_rates),
+        'priority_labels': json.dumps(priority_labels, cls=DecimalEncoder),
+        'priority_rates': json.dumps(priority_rates, cls=DecimalEncoder),
         
         # County Distribution
-        'county_labels': json.dumps(county_labels),
-        'county_values': json.dumps(county_values),
+        'county_labels': json.dumps(county_labels, cls=DecimalEncoder),
+        'county_values': json.dumps(county_values, cls=DecimalEncoder),
         
         # Transport Average Time
-        'transport_time_labels': json.dumps(transport_time_labels),
-        'transport_time_values': json.dumps(transport_time_values),
+        'transport_time_labels': json.dumps(transport_time_labels, cls=DecimalEncoder),
+        'transport_time_values': json.dumps(transport_time_values, cls=DecimalEncoder),
         
         # Tables
         'recent_cargo': recent_cargo,
@@ -434,3 +442,407 @@ def dashboard(request):
     }
     
     return render(request, 'admin/dashboard.html', context)
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Avg, Q, F
+from django.utils import timezone
+from datetime import timedelta
+from .models import (
+    Cargo, Supplier, Warehouse, CargoCategory, 
+    County, SupplierPerformance, Alert, Report
+)
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+import json
+
+
+
+@login_required
+def cargo_tracking_list(request):
+    """List all cargo shipments with filtering and pagination"""
+    cargos = Cargo.objects.select_related(
+        'supplier', 'warehouse', 'category'
+    ).order_by('-dispatch_date')
+    
+    # Filters
+    status_filter = request.GET.get('status')
+    supplier_filter = request.GET.get('supplier')
+    warehouse_filter = request.GET.get('warehouse')
+    priority_filter = request.GET.get('priority')
+    
+    if status_filter:
+        cargos = cargos.filter(status=status_filter)
+    if supplier_filter:
+        cargos = cargos.filter(supplier_id=supplier_filter)
+    if warehouse_filter:
+        cargos = cargos.filter(warehouse_id=warehouse_filter)
+    if priority_filter:
+        cargos = cargos.filter(priority=priority_filter)
+    
+    # Pagination
+    paginator = Paginator(cargos, 25)  # 25 items per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    suppliers = Supplier.objects.filter(status='ACTIVE')
+    warehouses = Warehouse.objects.filter(is_active=True)
+    
+    context = {
+        'page_obj': page_obj,
+        'suppliers': suppliers,
+        'warehouses': warehouses,
+        'status_choices': Cargo.STATUS_CHOICES,
+        'priority_choices': Cargo.PRIORITY_CHOICES,
+        'current_filters': {
+            'status': status_filter,
+            'supplier': supplier_filter,
+            'warehouse': warehouse_filter,
+            'priority': priority_filter,
+        }
+    }
+    
+    return render(request, 'cargo/tracking_list.html', context)
+
+
+@login_required
+def cargo_detail(request, cargo_id):
+    """Detailed view of a single cargo shipment"""
+    cargo = get_object_or_404(
+        Cargo.objects.select_related(
+            'supplier', 'warehouse', 'category'
+        ).prefetch_related('status_history', 'alerts'),
+        cargo_id=cargo_id
+    )
+    
+    status_history = cargo.status_history.all().order_by('-created_at')
+    related_alerts = cargo.alerts.filter(is_resolved=False)
+    
+    context = {
+        'cargo': cargo,
+        'status_history': status_history,
+        'related_alerts': related_alerts,
+    }
+    
+    return render(request, 'cargo/detail.html', context)
+
+
+@login_required
+def supplier_list(request):
+    """List all suppliers with filtering"""
+    suppliers = Supplier.objects.select_related('county').prefetch_related('performance')
+    
+    # Filters
+    status_filter = request.GET.get('status')
+    type_filter = request.GET.get('type')
+    county_filter = request.GET.get('county')
+    
+    if status_filter:
+        suppliers = suppliers.filter(status=status_filter)
+    if type_filter:
+        suppliers = suppliers.filter(supplier_type=type_filter)
+    if county_filter:
+        suppliers = suppliers.filter(county_id=county_filter)
+    
+    # Pagination
+    paginator = Paginator(suppliers, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    counties = County.objects.all()
+    
+    context = {
+        'page_obj': page_obj,
+        'counties': counties,
+        'status_choices': Supplier.STATUS_CHOICES,
+        'type_choices': Supplier.SUPPLIER_TYPE_CHOICES,
+        'current_filters': {
+            'status': status_filter,
+            'type': type_filter,
+            'county': county_filter,
+        }
+    }
+    
+    return render(request, 'suppliers/list.html', context)
+
+
+@login_required
+def supplier_detail(request, supplier_id):
+    """Detailed view of a supplier with performance metrics"""
+    supplier = get_object_or_404(
+        Supplier.objects.select_related('county', 'performance'),
+        supplier_id=supplier_id
+    )
+    
+    # Get recent cargo shipments
+    recent_cargos = Cargo.objects.filter(
+        supplier=supplier
+    ).order_by('-dispatch_date')[:10]
+    
+    # Performance statistics
+    performance_stats = {
+        'total_shipments': recent_cargos.count(),
+        'on_time_rate': supplier.reliability_score,
+        'avg_delivery_time': supplier.performance.average_delivery_time_hours if hasattr(supplier, 'performance') else 0,
+    }
+    
+    context = {
+        'supplier': supplier,
+        'recent_cargos': recent_cargos,
+        'performance_stats': performance_stats,
+    }
+    
+    return render(request, 'suppliers/detail.html', context)
+
+
+@login_required
+def warehouse_list(request):
+    """List all warehouses"""
+    warehouses = Warehouse.objects.select_related('county').filter(is_active=True)
+    
+    # Calculate utilization for each warehouse
+    for warehouse in warehouses:
+        warehouse.utilization_percentage = warehouse.capacity_utilization_percentage
+    
+    context = {
+        'warehouses': warehouses,
+    }
+    
+    return render(request, 'warehouses/list.html', context)
+
+
+@login_required
+def warehouse_detail(request, warehouse_id):
+    """Detailed view of a warehouse"""
+    warehouse = get_object_or_404(
+        Warehouse.objects.select_related('county'),
+        warehouse_id=warehouse_id
+    )
+    
+    # Get current cargo in warehouse
+    current_cargos = Cargo.objects.filter(
+        warehouse=warehouse,
+        status__in=['RECEIVED', 'STORED']
+    ).select_related('supplier', 'category')
+    
+    # Get recent arrivals
+    recent_arrivals = Cargo.objects.filter(
+        warehouse=warehouse
+    ).order_by('-actual_arrival_date')[:10]
+    
+    context = {
+        'warehouse': warehouse,
+        'current_cargos': current_cargos,
+        'recent_arrivals': recent_arrivals,
+        'utilization_percentage': warehouse.capacity_utilization_percentage,
+    }
+    
+    return render(request, 'warehouses/detail.html', context)
+
+
+@login_required
+def category_list(request):
+    """List all cargo categories"""
+    categories = CargoCategory.objects.filter(is_active=True).annotate(
+        total_cargos=Count('cargos')
+    )
+    
+    context = {
+        'categories': categories,
+    }
+    
+    return render(request, 'categories/list.html', context)
+
+
+@login_required
+def county_list(request):
+    """List all counties with supplier counts"""
+    counties = County.objects.annotate(
+        supplier_count=Count('supplier'),
+        warehouse_count=Count('warehouse')
+    ).order_by('name')
+    
+    context = {
+        'counties': counties,
+    }
+    
+    return render(request, 'counties/list.html', context)
+
+
+@login_required
+def supplier_performance(request):
+    """Supplier performance analytics dashboard"""
+    # Get all supplier performances
+    performances = SupplierPerformance.objects.select_related('supplier').order_by(
+        '-overall_performance_score'
+    )
+    
+    # Performance statistics
+    total_suppliers = performances.count()
+    avg_performance_score = performances.aggregate(
+        avg_score=Avg('overall_performance_score')
+    )['avg_score'] or 0
+    
+    # Top performers
+    top_performers = performances.filter(
+        overall_performance_score__gte=80
+    )[:10]
+    
+    # Need improvement
+    need_improvement = performances.filter(
+        overall_performance_score__lt=60
+    )[:10]
+    
+    context = {
+        'performances': performances,
+        'total_suppliers': total_suppliers,
+        'avg_performance_score': avg_performance_score,
+        'top_performers': top_performers,
+        'need_improvement': need_improvement,
+    }
+    
+    return render(request, 'analytics/supplier_performance.html', context)
+
+
+@login_required
+def reports_list(request):
+    """List all generated reports"""
+    reports = Report.objects.all().order_by('-created_at')
+    
+    context = {
+        'reports': reports,
+    }
+    
+    return render(request, 'reports/list.html', context)
+
+
+@login_required
+def report_detail(request, report_id):
+    """View a specific report"""
+    report = get_object_or_404(Report, id=report_id)
+    
+    context = {
+        'report': report,
+    }
+    
+    return render(request, 'reports/detail.html', context)
+
+
+@login_required
+def alerts_list(request):
+    """List all system alerts"""
+    alerts = Alert.objects.select_related(
+        'cargo', 'supplier', 'warehouse'
+    ).order_by('-created_at')
+    
+    # Filters
+    severity_filter = request.GET.get('severity')
+    type_filter = request.GET.get('type')
+    resolved_filter = request.GET.get('resolved')
+    
+    if severity_filter:
+        alerts = alerts.filter(severity=severity_filter)
+    if type_filter:
+        alerts = alerts.filter(alert_type=type_filter)
+    if resolved_filter == 'true':
+        alerts = alerts.filter(is_resolved=True)
+    elif resolved_filter == 'false':
+        alerts = alerts.filter(is_resolved=False)
+    
+    # Pagination
+    paginator = Paginator(alerts, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'severity_choices': Alert.SEVERITY_CHOICES,
+        'type_choices': Alert.ALERT_TYPE_CHOICES,
+        'current_filters': {
+            'severity': severity_filter,
+            'type': type_filter,
+            'resolved': resolved_filter,
+        }
+    }
+    
+    return render(request, 'alerts/list.html', context)
+
+
+@login_required
+def mark_alert_resolved(request, alert_id):
+    """Mark an alert as resolved"""
+    if request.method == 'POST':
+        alert = get_object_or_404(Alert, id=alert_id)
+        alert.is_resolved = True
+        alert.resolved_at = timezone.now()
+        alert.resolved_by = request.user
+        alert.resolution_notes = request.POST.get('resolution_notes', '')
+        alert.save()
+        
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False})
+
+
+@login_required
+def help_page(request):
+    """Help and documentation page"""
+    return render(request, 'help/index.html')
+
+
+@login_required
+def documentation_page(request):
+    """System documentation"""
+    return render(request, 'help/documentation.html')
+
+
+# API Views for Dashboard Widgets
+@login_required
+def dashboard_stats(request):
+    """API endpoint for dashboard statistics"""
+    # Calculate various statistics
+    total_cargos = Cargo.objects.count()
+    delayed_cargos = Cargo.objects.filter(is_delayed=True).count()
+    active_suppliers = Supplier.objects.filter(status='ACTIVE').count()
+    total_warehouses = Warehouse.objects.filter(is_active=True).count()
+    
+    # Recent activity
+    recent_cargos_count = Cargo.objects.filter(
+        created_at__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    
+    # High priority cargo
+    high_priority_cargos = Cargo.objects.filter(
+        priority__in=['HIGH', 'URGENT'],
+        status__in=['DISPATCHED', 'IN_TRANSIT']
+    ).count()
+    
+    stats = {
+        'total_cargos': total_cargos,
+        'delayed_cargos': delayed_cargos,
+        'active_suppliers': active_suppliers,
+        'total_warehouses': total_warehouses,
+        'recent_activity': recent_cargos_count,
+        'high_priority': high_priority_cargos,
+    }
+    
+    return JsonResponse(stats)
+
+
+@login_required
+def cargo_status_chart(request):
+    """API endpoint for cargo status chart data"""
+    status_counts = Cargo.objects.values('status').annotate(
+        count=Count('id')
+    )
+    
+    chart_data = {
+        'labels': [item['status'] for item in status_counts],
+        'data': [item['count'] for item in status_counts],
+    }
+    
+    return JsonResponse(chart_data)
