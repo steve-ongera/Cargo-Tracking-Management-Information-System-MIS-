@@ -759,6 +759,284 @@ def cargo_detail(request, cargo_id):
     return render(request, 'cargo/detail.html', context)
 
 
+"""
+Cargo Tracking Management Information System - Shipment Views
+Professional views for creating and editing cargo shipments with validation and audit trails.
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db import transaction
+from django.utils import timezone
+from django.core.paginator import Paginator
+from django.db.models import Q
+from decimal import Decimal
+import json
+
+from .models import (
+    Cargo, Supplier, Warehouse, CargoCategory, 
+    CargoStatusHistory, Alert
+)
+
+
+@login_required
+def new_shipment(request):
+    """
+    Create a new cargo shipment
+    """
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Extract form data
+                supplier_id = request.POST.get('supplier')
+                warehouse_id = request.POST.get('warehouse')
+                category_id = request.POST.get('category')
+                
+                # Create cargo instance
+                cargo = Cargo()
+                cargo.supplier_id = supplier_id
+                cargo.warehouse_id = warehouse_id
+                cargo.category_id = category_id
+                
+                # Basic details
+                cargo.description = request.POST.get('description')
+                cargo.quantity = int(request.POST.get('quantity'))
+                cargo.unit_of_measurement = request.POST.get('unit_of_measurement', 'PCS')
+                cargo.weight_kg = Decimal(request.POST.get('weight_kg'))
+                
+                volume_cbm = request.POST.get('volume_cbm')
+                if volume_cbm:
+                    cargo.volume_cbm = Decimal(volume_cbm)
+                
+                # Valuation
+                cargo.declared_value = Decimal(request.POST.get('declared_value'))
+                insurance_value = request.POST.get('insurance_value')
+                if insurance_value:
+                    cargo.insurance_value = Decimal(insurance_value)
+                
+                # Shipment details
+                cargo.dispatch_date = request.POST.get('dispatch_date')
+                cargo.expected_arrival_date = request.POST.get('expected_arrival_date')
+                
+                # Transport details
+                cargo.transport_mode = request.POST.get('transport_mode', 'ROAD')
+                cargo.vehicle_registration = request.POST.get('vehicle_registration', '').upper()
+                cargo.driver_name = request.POST.get('driver_name')
+                cargo.driver_phone = request.POST.get('driver_phone')
+                
+                # Priority and status
+                cargo.priority = request.POST.get('priority', 'MEDIUM')
+                cargo.status = 'DISPATCHED'
+                
+                # Documentation
+                cargo.purchase_order_number = request.POST.get('purchase_order_number')
+                cargo.invoice_number = request.POST.get('invoice_number')
+                cargo.delivery_note_number = request.POST.get('delivery_note_number')
+                
+                # Additional fields
+                cargo.special_instructions = request.POST.get('special_instructions')
+                cargo.notes = request.POST.get('notes')
+                
+                # Audit fields
+                cargo.created_by = request.user
+                cargo.updated_by = request.user
+                
+                # Save cargo
+                cargo.save()
+                
+                # Create initial status history
+                CargoStatusHistory.objects.create(
+                    cargo=cargo,
+                    from_status='CREATED',
+                    to_status='DISPATCHED',
+                    change_reason='Initial shipment creation',
+                    location=f"{cargo.supplier.town_city}, {cargo.supplier.county.name}",
+                    remarks=f"Shipment dispatched to {cargo.warehouse.name}",
+                    created_by=request.user
+                )
+                
+                # Create arrival alert for high priority shipments
+                if cargo.priority in ['HIGH', 'URGENT']:
+                    Alert.objects.create(
+                        alert_type='ARRIVAL',
+                        severity='WARNING' if cargo.priority == 'HIGH' else 'CRITICAL',
+                        title=f'High Priority Shipment Dispatched',
+                        message=f'Cargo {cargo.cargo_id} ({cargo.priority}) has been dispatched. Expected arrival: {cargo.expected_arrival_date.strftime("%d %b %Y %H:%M")}',
+                        cargo=cargo,
+                        supplier=cargo.supplier,
+                        warehouse=cargo.warehouse,
+                        created_by=request.user
+                    )
+                
+                messages.success(
+                    request, 
+                    f'Shipment {cargo.cargo_id} created successfully! Tracking number: {cargo.tracking_number}'
+                )
+                return redirect('cargo_detail', cargo_id=cargo.id)
+                
+        except Exception as e:
+            messages.error(request, f'Error creating shipment: {str(e)}')
+            return redirect('new_shipment')
+    
+    # GET request - show form
+    context = {
+        'suppliers': Supplier.objects.filter(status='ACTIVE').order_by('name'),
+        'warehouses': Warehouse.objects.filter(is_active=True).order_by('name'),
+        'categories': CargoCategory.objects.filter(is_active=True).order_by('name'),
+        'transport_modes': Cargo._meta.get_field('transport_mode').choices,
+        'priority_choices': Cargo.PRIORITY_CHOICES,
+        'units_of_measurement': ['PCS', 'KG', 'TONS', 'BOXES', 'PALLETS', 'CARTONS', 'UNITS'],
+        'page_title': 'Create New Shipment',
+        'form_action': 'new_shipment',
+    }
+    
+    return render(request, 'cargo/shipment_form.html', context)
+
+
+@login_required
+def edit_shipment(request, cargo_id):
+    """
+    Edit existing cargo shipment
+    """
+    cargo = get_object_or_404(Cargo, id=cargo_id)
+    
+    # Prevent editing if cargo is already received or cancelled
+    if cargo.status in ['RECEIVED', 'STORED', 'CANCELLED']:
+        messages.warning(
+            request, 
+            f'Cannot edit shipment with status: {cargo.get_status_display()}. Please update status first.'
+        )
+        return redirect('cargo_detail', cargo_id=cargo.id)
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Store old values for history
+                old_status = cargo.status
+                old_warehouse = cargo.warehouse
+                old_expected_arrival = cargo.expected_arrival_date
+                
+                # Update basic details
+                cargo.supplier_id = request.POST.get('supplier')
+                cargo.warehouse_id = request.POST.get('warehouse')
+                cargo.category_id = request.POST.get('category')
+                
+                cargo.description = request.POST.get('description')
+                cargo.quantity = int(request.POST.get('quantity'))
+                cargo.unit_of_measurement = request.POST.get('unit_of_measurement', 'PCS')
+                cargo.weight_kg = Decimal(request.POST.get('weight_kg'))
+                
+                volume_cbm = request.POST.get('volume_cbm')
+                if volume_cbm:
+                    cargo.volume_cbm = Decimal(volume_cbm)
+                else:
+                    cargo.volume_cbm = None
+                
+                # Valuation
+                cargo.declared_value = Decimal(request.POST.get('declared_value'))
+                insurance_value = request.POST.get('insurance_value')
+                if insurance_value:
+                    cargo.insurance_value = Decimal(insurance_value)
+                else:
+                    cargo.insurance_value = None
+                
+                # Shipment details
+                cargo.dispatch_date = request.POST.get('dispatch_date')
+                cargo.expected_arrival_date = request.POST.get('expected_arrival_date')
+                
+                # Transport details
+                cargo.transport_mode = request.POST.get('transport_mode', 'ROAD')
+                cargo.vehicle_registration = request.POST.get('vehicle_registration', '').upper()
+                cargo.driver_name = request.POST.get('driver_name')
+                cargo.driver_phone = request.POST.get('driver_phone')
+                
+                # Priority
+                cargo.priority = request.POST.get('priority', 'MEDIUM')
+                
+                # Status update (if changed)
+                new_status = request.POST.get('status')
+                if new_status and new_status != old_status:
+                    cargo.status = new_status
+                
+                # Documentation
+                cargo.purchase_order_number = request.POST.get('purchase_order_number')
+                cargo.invoice_number = request.POST.get('invoice_number')
+                cargo.delivery_note_number = request.POST.get('delivery_note_number')
+                
+                # Additional fields
+                cargo.special_instructions = request.POST.get('special_instructions')
+                cargo.notes = request.POST.get('notes')
+                
+                # Update audit fields
+                cargo.updated_by = request.user
+                
+                # Save cargo
+                cargo.save()
+                
+                # Create status history if status changed
+                if new_status and new_status != old_status:
+                    CargoStatusHistory.objects.create(
+                        cargo=cargo,
+                        from_status=old_status,
+                        to_status=new_status,
+                        change_reason='Status updated during shipment edit',
+                        location=f"{cargo.warehouse.town_city}, {cargo.warehouse.county.name}",
+                        remarks=request.POST.get('status_change_reason', 'Updated via edit form'),
+                        created_by=request.user
+                    )
+                
+                # Create alert if warehouse changed
+                if cargo.warehouse != old_warehouse:
+                    Alert.objects.create(
+                        alert_type='SYSTEM',
+                        severity='INFO',
+                        title=f'Shipment Destination Changed',
+                        message=f'Cargo {cargo.cargo_id} destination changed from {old_warehouse.name} to {cargo.warehouse.name}',
+                        cargo=cargo,
+                        warehouse=cargo.warehouse,
+                        created_by=request.user
+                    )
+                
+                # Create alert if expected arrival changed significantly (more than 1 day)
+                if old_expected_arrival != cargo.expected_arrival_date:
+                    time_diff = abs((cargo.expected_arrival_date - old_expected_arrival).days)
+                    if time_diff > 1:
+                        Alert.objects.create(
+                            alert_type='DELAY' if cargo.expected_arrival_date > old_expected_arrival else 'SYSTEM',
+                            severity='WARNING',
+                            title=f'Expected Arrival Date Changed',
+                            message=f'Cargo {cargo.cargo_id} expected arrival changed from {old_expected_arrival.strftime("%d %b %Y")} to {cargo.expected_arrival_date.strftime("%d %b %Y")}',
+                            cargo=cargo,
+                            warehouse=cargo.warehouse,
+                            created_by=request.user
+                        )
+                
+                messages.success(request, f'Shipment {cargo.cargo_id} updated successfully!')
+                return redirect('cargo_detail', cargo_id=cargo.id)
+                
+        except Exception as e:
+            messages.error(request, f'Error updating shipment: {str(e)}')
+            return redirect('edit_shipment', cargo_id=cargo.id)
+    
+    # GET request - show form with existing data
+    context = {
+        'cargo': cargo,
+        'suppliers': Supplier.objects.filter(status='ACTIVE').order_by('name'),
+        'warehouses': Warehouse.objects.filter(is_active=True).order_by('name'),
+        'categories': CargoCategory.objects.filter(is_active=True).order_by('name'),
+        'transport_modes': Cargo._meta.get_field('transport_mode').choices,
+        'priority_choices': Cargo.PRIORITY_CHOICES,
+        'status_choices': Cargo.STATUS_CHOICES,
+        'units_of_measurement': ['PCS', 'KG', 'TONS', 'BOXES', 'PALLETS', 'CARTONS', 'UNITS'],
+        'page_title': f'Edit Shipment - {cargo.cargo_id}',
+        'form_action': 'edit_shipment',
+        'is_edit': True,
+    }
+    
+    return render(request, 'cargo/shipment_form.html', context)
+
+
 @login_required
 def supplier_list(request):
     """List all suppliers with filtering"""

@@ -8,8 +8,12 @@ urlpatterns = [
     path('admin-dashboard/', views.dashboard , name='dashboard'),
     path('api/dashboard/stats/', views.dashboard_stats, name='dashboard_stats'),
     path('api/dashboard/cargo-chart/', views.cargo_status_chart, name='cargo_status_chart'),
+    
     path('cargo/', views.cargo_tracking_list, name='cargo_list'),
     path('cargo/<str:cargo_id>/', views.cargo_detail, name='cargo_detail'),
+    path('shipments/new/', views.new_shipment, name='new_shipment'),
+    path('shipments/<int:cargo_id>/edit/', views.edit_shipment, name='edit_shipment'),
+
     path('suppliers/', views.supplier_list, name='supplier_list'),
     path('suppliers/<str:supplier_id>/', views.supplier_detail, name='supplier_detail'),
     path('warehouses/', views.warehouse_list, name='warehouse_list'),
