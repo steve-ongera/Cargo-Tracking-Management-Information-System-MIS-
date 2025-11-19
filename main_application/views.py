@@ -1143,10 +1143,12 @@ def new_shipment(request):
                     )
                 
                 messages.success(
-                    request, 
-                    f'Shipment {cargo.cargo_id} created successfully with automated priority ({cargo.get_priority_display()}) and transport mode ({cargo.get_transport_mode_display()})!'
-                )
-                return redirect('cargo_detail', cargo_id=cargo.id)
+                request,
+                f'Shipment {cargo.cargo_id} created successfully with automated priority ({cargo.get_priority_display()}) and transport mode ({cargo.get_transport_mode_display()})!'
+            )
+
+            return redirect('cargo_detail', cargo_id=cargo.cargo_id)
+
                 
         except Exception as e:
             messages.error(request, f'Error creating shipment: {str(e)}')

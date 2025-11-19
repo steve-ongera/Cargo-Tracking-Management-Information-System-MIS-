@@ -1014,7 +1014,7 @@
                 .join('&');
             
             // Fetch suggestions
-            fetch(`/cargo/get-suggestions/?${queryString}`)
+            fetch(`/cargo-get-suggestions/?${queryString}`)
                 .then(response => response.json())
                 .then(result => {
                     if (result.success) {
