@@ -13,6 +13,8 @@ urlpatterns = [
     path('cargo/<str:cargo_id>/', views.cargo_detail, name='cargo_detail'),
     path('shipments/new/', views.new_shipment, name='new_shipment'),
     path('shipments/<int:cargo_id>/edit/', views.edit_shipment, name='edit_shipment'),
+    # AJAX endpoint for smart automation
+    path('cargo/get-suggestions/', views.get_shipment_suggestions, name='get_shipment_suggestions'),
 
     path('suppliers/', views.supplier_list, name='supplier_list'),
     path('suppliers/<str:supplier_id>/', views.supplier_detail, name='supplier_detail'),

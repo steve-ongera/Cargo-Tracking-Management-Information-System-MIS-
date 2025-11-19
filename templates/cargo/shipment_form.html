@@ -117,12 +117,36 @@
         color: var(--danger-color);
     }
     
+    .auto-badge {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 10px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: 8px;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    
     .form-control, .form-select {
         padding: 12px 16px;
         border: 1px solid var(--border-color);
         border-radius: 6px;
         font-size: 14px;
         transition: all 0.2s;
+    }
+    
+    .form-control.auto-filled {
+        background: linear-gradient(to right, #f0f9ff, white);
+        border-color: var(--info-color);
     }
     
     .form-control:focus, .form-select:focus {
@@ -190,6 +214,11 @@
         transform: translateY(-1px);
     }
     
+    .btn-info {
+        background: var(--info-color);
+        color: white;
+    }
+    
     .alert {
         border-radius: 8px;
         padding: 15px;
@@ -208,6 +237,11 @@
     .alert-warning {
         background: #fef3c7;
         color: #92400e;
+    }
+    
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
     }
     
     .alert i {
@@ -248,6 +282,11 @@
         margin-bottom: 20px;
     }
     
+    .info-card.success {
+        border-left-color: var(--success-color);
+        background: #f0fdf4;
+    }
+    
     .info-card-title {
         font-weight: 600;
         color: #111827;
@@ -261,6 +300,89 @@
         font-size: 13px;
         color: var(--text-muted);
         margin: 0;
+    }
+    
+    .automation-panel {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .automation-panel h3 {
+        font-size: 16px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .automation-panel p {
+        font-size: 13px;
+        opacity: 0.9;
+        margin-bottom: 15px;
+    }
+    
+    .automation-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 10px 15px;
+        border-radius: 6px;
+        margin-top: 10px;
+    }
+    
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+    }
+    
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.3);
+        transition: 0.4s;
+        border-radius: 24px;
+    }
+    
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+        background-color: var(--success-color);
+    }
+    
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+    
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.15rem;
     }
     
     @media (max-width: 768px) {
@@ -308,7 +430,7 @@
                     {% if is_edit %}
                         Update shipment details and track changes
                     {% else %}
-                        Create a new cargo shipment and start tracking
+                        Create a new cargo shipment with AI-powered automation
                     {% endif %}
                 </p>
             </div>
@@ -321,6 +443,25 @@
             {% endif %}
         </div>
     </div>
+    
+    <!-- Automation Panel (New Shipments Only) -->
+    {% if not is_edit %}
+    <div class="automation-panel">
+        <h3>
+            <i class="bi bi-magic"></i> 
+            Smart Automation Enabled
+        </h3>
+        <p>Our system will automatically suggest optimal values for priority, transport mode, delivery time, and more based on cargo details, supplier performance, and destination.</p>
+        
+        <div class="automation-toggle">
+            <label class="switch">
+                <input type="checkbox" id="enableAutomation" checked>
+                <span class="slider"></span>
+            </label>
+            <span>Enable auto-suggestions (recommended)</span>
+        </div>
+    </div>
+    {% endif %}
     
     <!-- Info Alert -->
     {% if is_edit %}
@@ -335,10 +476,19 @@
     <div class="alert alert-info">
         <i class="bi bi-info-circle"></i>
         <div>
-            <strong>New Shipment Creation:</strong> Fill in all required fields marked with <span class="text-danger">*</span>. A unique tracking number will be generated automatically.
+            <strong>Smart Form:</strong> Fields marked with <span class="auto-badge"><i class="bi bi-magic"></i> AUTO</span> will be automatically filled based on your inputs. You can override any suggestion.
         </div>
     </div>
     {% endif %}
+    
+    <!-- Suggestion Results (Hidden by default) -->
+    <div id="suggestionResults" class="info-card success" style="display: none;">
+        <div class="info-card-title">
+            <i class="bi bi-check-circle text-success"></i>
+            <span>Automation Suggestions Applied</span>
+        </div>
+        <div id="suggestionDetails" class="info-card-text"></div>
+    </div>
     
     <!-- Form -->
     <form method="POST" id="shipmentForm">
@@ -366,12 +516,15 @@
                             <option value="">Select Supplier</option>
                             {% for supplier in suppliers %}
                             <option value="{{ supplier.id }}" 
+                                data-score="{{ supplier.reliability_score }}"
+                                data-county="{{ supplier.county.name }}"
                                 {% if is_edit and cargo.supplier.id == supplier.id %}selected{% endif %}>
-                                {{ supplier.supplier_id }} - {{ supplier.name }}
+                                {{ supplier.supplier_id }} - {{ supplier.name }} (Score: {{ supplier.reliability_score }})
                             </option>
                             {% endfor %}
                         </select>
                         <div class="form-text">Choose the supplier providing the cargo</div>
+                        <div id="supplierInfo" class="mt-2" style="display: none;"></div>
                     </div>
                     
                     <div class="col-md-4">
@@ -382,12 +535,14 @@
                             <option value="">Select Warehouse</option>
                             {% for warehouse in warehouses %}
                             <option value="{{ warehouse.id }}" 
+                                data-county="{{ warehouse.county.name }}"
                                 {% if is_edit and cargo.warehouse.id == warehouse.id %}selected{% endif %}>
                                 {{ warehouse.warehouse_id }} - {{ warehouse.name }}
                             </option>
                             {% endfor %}
                         </select>
                         <div class="form-text">Final destination for the cargo</div>
+                        <div id="warehouseInfo" class="mt-2" style="display: none;"></div>
                     </div>
                     
                     <div class="col-md-4">
@@ -398,8 +553,10 @@
                             <option value="">Select Category</option>
                             {% for category in categories %}
                             <option value="{{ category.id }}" 
+                                data-special="{{ category.requires_special_handling }}"
                                 {% if is_edit and cargo.category.id == category.id %}selected{% endif %}>
                                 {{ category.code }} - {{ category.name }}
+                                {% if category.requires_special_handling %} ⚠️{% endif %}
                             </option>
                             {% endfor %}
                         </select>
@@ -439,12 +596,14 @@
                     
                     <div class="col-md-4">
                         <label for="unit_of_measurement" class="form-label">
-                            Unit of Measurement <span class="required">*</span>
+                            Unit of Measurement 
+                            {% if not is_edit %}<span class="auto-badge"><i class="bi bi-magic"></i> AUTO</span>{% endif %}
+                            <span class="required">*</span>
                         </label>
                         <select class="form-select" id="unit_of_measurement" name="unit_of_measurement" required>
                             {% for unit in units_of_measurement %}
                             <option value="{{ unit }}" 
-                                {% if is_edit and cargo.unit_of_measurement == unit %}selected{% endif %}>
+                                {% if is_edit and cargo.unit_of_measurement == unit %}selected{% elif not is_edit and unit == 'AUTO' %}selected{% endif %}>
                                 {{ unit }}
                             </option>
                             {% endfor %}
@@ -533,11 +692,14 @@
                     
                     <div class="col-md-6">
                         <label for="expected_arrival_date" class="form-label">
-                            Expected Arrival Date & Time <span class="required">*</span>
+                            Expected Arrival Date & Time 
+                            {% if not is_edit %}<span class="auto-badge"><i class="bi bi-magic"></i> AUTO</span>{% endif %}
+                            <span class="required">*</span>
                         </label>
                         <input type="datetime-local" class="form-control" id="expected_arrival_date" name="expected_arrival_date" 
                                required value="{% if is_edit %}{{ cargo.expected_arrival_date|date:'Y-m-d\TH:i' }}{% endif %}">
                         <div class="form-text">Expected arrival at destination warehouse</div>
+                        <input type="hidden" name="use_auto_arrival" id="use_auto_arrival" value="true">
                     </div>
                 </div>
             </div>
@@ -557,12 +719,17 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label for="transport_mode" class="form-label">
-                            Transport Mode <span class="required">*</span>
+                            Transport Mode 
+                            {% if not is_edit %}<span class="auto-badge"><i class="bi bi-magic"></i> AUTO</span>{% endif %}
+                            <span class="required">*</span>
                         </label>
                         <select class="form-select" id="transport_mode" name="transport_mode" required>
+                            {% if not is_edit %}
+                            <option value="AUTO" selected>Auto-Select Optimal Mode</option>
+                            {% endif %}
                             {% for mode_value, mode_label in transport_modes %}
                             <option value="{{ mode_value }}" 
-                                {% if is_edit and cargo.transport_mode == mode_value %}selected{% elif not is_edit and mode_value == 'ROAD' %}selected{% endif %}>
+                                {% if is_edit and cargo.transport_mode == mode_value %}selected{% endif %}>
                                 {{ mode_label }}
                             </option>
                             {% endfor %}
@@ -581,12 +748,17 @@
                     
                     <div class="col-md-4">
                         <label for="priority" class="form-label">
-                            Priority <span class="required">*</span>
+                            Priority 
+                            {% if not is_edit %}<span class="auto-badge"><i class="bi bi-magic"></i> AUTO</span>{% endif %}
+                            <span class="required">*</span>
                         </label>
                         <select class="form-select" id="priority" name="priority" required>
+                            {% if not is_edit %}
+                            <option value="AUTO" selected>Auto-Calculate Priority</option>
+                            {% endif %}
                             {% for priority_value, priority_label in priority_choices %}
                             <option value="{{ priority_value }}" 
-                                {% if is_edit and cargo.priority == priority_value %}selected{% elif not is_edit and priority_value == 'MEDIUM' %}selected{% endif %}>
+                                {% if is_edit and cargo.priority == priority_value %}selected{% endif %}>
                                 {{ priority_label }}
                             </option>
                             {% endfor %}
@@ -741,6 +913,11 @@
                 </a>
                 
                 <div class="d-flex gap-2">
+                    {% if not is_edit %}
+                    <button type="button" class="btn btn-info" id="getSuggestionsBtn">
+                        <i class="bi bi-magic"></i> Get Smart Suggestions
+                    </button>
+                    {% endif %}
                     <button type="submit" class="btn btn-success">
                         <i class="bi {% if is_edit %}bi-check-circle{% else %}bi-plus-circle{% endif %}"></i>
                         {% if is_edit %}Update Shipment{% else %}Create Shipment{% endif %}
@@ -754,9 +931,219 @@
 
 {% block extra_js %}
 <script>
-    // Form validation and enhancement
+    // Smart Automation System
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('shipmentForm');
+        const isEdit = {{ is_edit|yesno:"true,false" }};
+        let automationEnabled = !isEdit;
+        
+        // Toggle automation
+        const automationToggle = document.getElementById('enableAutomation');
+        if (automationToggle) {
+            automationToggle.addEventListener('change', function() {
+                automationEnabled = this.checked;
+                if (automationEnabled) {
+                    triggerAutoSuggestions();
+                }
+            });
+        }
+        
+        // Fields that trigger auto-suggestions
+        const triggerFields = ['supplier', 'warehouse', 'category', 'declared_value', 'weight_kg', 'volume_cbm', 'description', 'dispatch_date'];
+        
+        triggerFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field && !isEdit) {
+                field.addEventListener('change', debounce(function() {
+                    if (automationEnabled && canTriggerSuggestions()) {
+                        triggerAutoSuggestions();
+                    }
+                }, 500));
+            }
+        });
+        
+        // Manual suggestion button
+        const getSuggestionsBtn = document.getElementById('getSuggestionsBtn');
+        if (getSuggestionsBtn) {
+            getSuggestionsBtn.addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Calculating...';
+                triggerAutoSuggestions(true);
+                setTimeout(() => {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-magic"></i> Get Smart Suggestions';
+                }, 2000);
+            });
+        }
+        
+        // Check if we have enough data to trigger suggestions
+        function canTriggerSuggestions() {
+            const supplier = document.getElementById('supplier').value;
+            const warehouse = document.getElementById('warehouse').value;
+            const category = document.getElementById('category').value;
+            const weight = document.getElementById('weight_kg').value;
+            const value = document.getElementById('declared_value').value;
+            
+            return supplier && warehouse && category && weight && value;
+        }
+        
+        // Trigger auto-suggestions
+        function triggerAutoSuggestions(showFeedback = false) {
+            if (!canTriggerSuggestions()) {
+                if (showFeedback) {
+                    alert('Please fill in Supplier, Warehouse, Category, Weight, and Declared Value first.');
+                }
+                return;
+            }
+            
+            const data = {
+                supplier_id: document.getElementById('supplier').value,
+                warehouse_id: document.getElementById('warehouse').value,
+                category_id: document.getElementById('category').value,
+                declared_value: document.getElementById('declared_value').value,
+                weight_kg: document.getElementById('weight_kg').value,
+                volume_cbm: document.getElementById('volume_cbm').value,
+                description: document.getElementById('description').value,
+                dispatch_date: document.getElementById('dispatch_date').value,
+            };
+            
+            // Build query string
+            const queryString = Object.keys(data)
+                .filter(key => data[key])
+                .map(key => `${key}=${encodeURIComponent(data[key])}`)
+                .join('&');
+            
+            // Fetch suggestions
+            fetch(`/cargo/get-suggestions/?${queryString}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        applySuggestions(result.suggestions, result.reasoning);
+                        displaySupplierInfo(result.supplier_info);
+                        displayWarehouseInfo(result.warehouse_info);
+                        
+                        if (showFeedback) {
+                            showSuggestionResults(result);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching suggestions:', error);
+                });
+        }
+        
+        // Apply suggestions to form
+        function applySuggestions(suggestions, reasoning) {
+            // Priority
+            const priorityField = document.getElementById('priority');
+            if (priorityField.value === 'AUTO' || priorityField.value === '') {
+                priorityField.value = suggestions.priority;
+                priorityField.classList.add('auto-filled');
+                setTimeout(() => priorityField.classList.remove('auto-filled'), 2000);
+            }
+            
+            // Transport Mode
+            const transportField = document.getElementById('transport_mode');
+            if (transportField.value === 'AUTO' || transportField.value === '') {
+                transportField.value = suggestions.transport_mode;
+                transportField.classList.add('auto-filled');
+                setTimeout(() => transportField.classList.remove('auto-filled'), 2000);
+            }
+            
+            // Unit of Measurement
+            const unitField = document.getElementById('unit_of_measurement');
+            if (unitField.value === 'AUTO') {
+                unitField.value = suggestions.unit_of_measurement;
+                unitField.classList.add('auto-filled');
+                setTimeout(() => unitField.classList.remove('auto-filled'), 2000);
+            }
+            
+            // Expected Arrival
+            if (suggestions.expected_arrival) {
+                const arrivalField = document.getElementById('expected_arrival_date');
+                const currentValue = arrivalField.value;
+                if (!currentValue || document.getElementById('use_auto_arrival').value === 'true') {
+                    // Convert ISO to datetime-local format
+                    const date = new Date(suggestions.expected_arrival);
+                    const formatted = date.toISOString().slice(0, 16);
+                    arrivalField.value = formatted;
+                    arrivalField.classList.add('auto-filled');
+                    setTimeout(() => arrivalField.classList.remove('auto-filled'), 2000);
+                }
+            }
+            
+            // Update priority indicator
+            updatePriorityIndicator(suggestions.priority);
+        }
+        
+        // Display supplier info
+        function displaySupplierInfo(info) {
+            if (!info) return;
+            
+            const container = document.getElementById('supplierInfo');
+            container.style.display = 'block';
+            container.innerHTML = `
+                <div class="alert alert-info p-2 mb-0">
+                    <small>
+                        <strong>${info.contact_person}</strong> | ${info.phone}<br>
+                        Reliability: <strong>${info.reliability_score}%</strong> | 
+                        Payment: ${info.payment_terms || 'Not specified'}
+                    </small>
+                </div>
+            `;
+        }
+        
+        // Display warehouse info
+        function displayWarehouseInfo(info) {
+            if (!info) return;
+            
+            const container = document.getElementById('warehouseInfo');
+            container.style.display = 'block';
+            
+            let utilizationClass = 'success';
+            if (info.utilization > 80) utilizationClass = 'danger';
+            else if (info.utilization > 60) utilizationClass = 'warning';
+            
+            container.innerHTML = `
+                <div class="alert alert-info p-2 mb-0">
+                    <small>
+                        <strong>${info.manager}</strong> | ${info.phone}<br>
+                        Capacity: <span class="badge bg-${utilizationClass}">${info.utilization.toFixed(1)}%</span>
+                    </small>
+                </div>
+            `;
+        }
+        
+        // Show suggestion results
+        function showSuggestionResults(result) {
+            const container = document.getElementById('suggestionResults');
+            const details = document.getElementById('suggestionDetails');
+            
+            details.innerHTML = `
+                <strong>✓ Priority:</strong> ${result.suggestions.priority} - ${result.reasoning.priority}<br>
+                <strong>✓ Transport:</strong> ${result.suggestions.transport_mode} - ${result.reasoning.transport_mode}<br>
+                <strong>✓ Unit:</strong> ${result.suggestions.unit_of_measurement}<br>
+                ${result.suggestions.expected_arrival ? '<strong>✓ Delivery:</strong> ' + result.reasoning.delivery_time : ''}
+            `;
+            
+            container.style.display = 'block';
+            setTimeout(() => {
+                container.style.display = 'none';
+            }, 10000);
+        }
+        
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
         
         // Auto-uppercase vehicle registration
         const vehicleReg = document.getElementById('vehicle_registration');
@@ -766,19 +1153,31 @@
             });
         }
         
-        // Validate dispatch date is not in the future for new shipments
+        // Validate dispatch date vs expected arrival
         const dispatchDate = document.getElementById('dispatch_date');
         const expectedArrival = document.getElementById('expected_arrival_date');
         
         if (dispatchDate && expectedArrival) {
+            // Mark when user manually changes expected arrival
+            expectedArrival.addEventListener('change', function() {
+                document.getElementById('use_auto_arrival').value = 'false';
+            });
+            
             dispatchDate.addEventListener('change', function() {
                 const dispatch = new Date(this.value);
                 const arrival = new Date(expectedArrival.value);
                 
-                // Ensure expected arrival is after dispatch
                 if (arrival && dispatch >= arrival) {
                     alert('Expected arrival date must be after dispatch date');
                     expectedArrival.value = '';
+                }
+                
+                // Re-enable auto calculation when dispatch changes
+                if (!isEdit) {
+                    document.getElementById('use_auto_arrival').value = 'true';
+                    if (automationEnabled) {
+                        triggerAutoSuggestions();
+                    }
                 }
             });
             
@@ -801,10 +1200,14 @@
             });
             
             // Initialize on page load
-            updatePriorityIndicator(prioritySelect.value);
+            if (prioritySelect.value && prioritySelect.value !== 'AUTO') {
+                updatePriorityIndicator(prioritySelect.value);
+            }
         }
         
         function updatePriorityIndicator(priority) {
+            if (priority === 'AUTO') return;
+            
             const existingBadge = document.querySelector('.priority-badge');
             if (existingBadge) {
                 existingBadge.remove();
@@ -835,7 +1238,7 @@
         form.addEventListener('submit', function(e) {
             const priority = document.getElementById('priority').value;
             
-            if (priority === 'URGENT' || priority === 'HIGH') {
+            if ((priority === 'URGENT' || priority === 'HIGH') && !isEdit) {
                 const confirmed = confirm(
                     `You are creating a ${priority} priority shipment. This will generate alerts for warehouse staff. Continue?`
                 );
@@ -846,65 +1249,12 @@
             }
         });
         
-        // Calculate estimated delivery time
-        if (dispatchDate && expectedArrival) {
-            function calculateDeliveryTime() {
-                const dispatch = new Date(dispatchDate.value);
-                const arrival = new Date(expectedArrival.value);
-                
-                if (dispatch && arrival && arrival > dispatch) {
-                    const diffMs = arrival - dispatch;
-                    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                    const diffDays = Math.floor(diffHours / 24);
-                    const remainingHours = diffHours % 24;
-                    
-                    let timeText = '';
-                    if (diffDays > 0) {
-                        timeText = `${diffDays} day${diffDays > 1 ? 's' : ''}`;
-                        if (remainingHours > 0) {
-                            timeText += ` ${remainingHours} hour${remainingHours > 1 ? 's' : ''}`;
-                        }
-                    } else {
-                        timeText = `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
-                    }
-                    
-                    // Show delivery time estimate
-                    let estimateDiv = document.getElementById('delivery-estimate');
-                    if (!estimateDiv) {
-                        estimateDiv = document.createElement('div');
-                        estimateDiv.id = 'delivery-estimate';
-                        estimateDiv.className = 'info-card mt-3';
-                        expectedArrival.parentElement.appendChild(estimateDiv);
-                    }
-                    
-                    estimateDiv.innerHTML = `
-                        <div class="info-card-title">
-                            <i class="bi bi-clock-history text-info"></i>
-                            Estimated Delivery Time
-                        </div>
-                        <p class="info-card-text">
-                            <strong>${timeText}</strong> from dispatch to expected arrival
-                        </p>
-                    `;
-                }
-            }
-            
-            dispatchDate.addEventListener('change', calculateDeliveryTime);
-            expectedArrival.addEventListener('change', calculateDeliveryTime);
-            
-            // Calculate on page load if both dates are set
-            if (dispatchDate.value && expectedArrival.value) {
-                calculateDeliveryTime();
-            }
-        }
-        
         // Phone number formatting
         const driverPhone = document.getElementById('driver_phone');
         if (driverPhone) {
             driverPhone.addEventListener('blur', function() {
                 let phone = this.value.trim();
                 
-                // Auto-format Kenyan phone numbers
                 if (phone && !phone.startsWith('+')) {
                     if (phone.startsWith('0')) {
                         phone = '+254' + phone.substring(1);
@@ -918,26 +1268,19 @@
             });
         }
         
-        // Supplier change - load supplier details (optional enhancement)
-        const supplierSelect = document.getElementById('supplier');
-        if (supplierSelect) {
-            supplierSelect.addEventListener('change', function() {
+        // Category change - check for special handling
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            categorySelect.addEventListener('change', function() {
                 const selectedOption = this.options[this.selectedIndex];
-                if (selectedOption.value) {
-                    console.log('Supplier selected:', selectedOption.text);
-                    // You could add AJAX call here to fetch supplier details
-                }
-            });
-        }
-        
-        // Warehouse change - show warehouse details (optional enhancement)
-        const warehouseSelect = document.getElementById('warehouse');
-        if (warehouseSelect) {
-            warehouseSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                if (selectedOption.value) {
-                    console.log('Warehouse selected:', selectedOption.text);
-                    // You could add AJAX call here to fetch warehouse details
+                const requiresSpecial = selectedOption.dataset.special === 'True';
+                
+                if (requiresSpecial && !isEdit) {
+                    const specialInstructions = document.getElementById('special_instructions');
+                    if (!specialInstructions.value) {
+                        specialInstructions.placeholder = '⚠️ This category requires special handling. Please add instructions.';
+                        specialInstructions.style.borderColor = 'var(--warning-color)';
+                    }
                 }
             });
         }
@@ -966,6 +1309,15 @@
                 firstInvalid.focus();
             }
         }, true);
+        
+        // Auto-trigger suggestions on page load if we have pre-filled data
+        if (!isEdit && automationEnabled) {
+            setTimeout(() => {
+                if (canTriggerSuggestions()) {
+                    triggerAutoSuggestions();
+                }
+            }, 500);
+        }
     });
 </script>
 {% endblock %}

@@ -760,8 +760,8 @@ def cargo_detail(request, cargo_id):
 
 
 """
-Cargo Tracking Management Information System - Shipment Views
-Professional views for creating and editing cargo shipments with validation and audit trails.
+Cargo Tracking Management Information System - Enhanced Shipment Views
+Smart automation for priority, transport mode, and other fields based on business rules.
 """
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -771,8 +771,10 @@ from django.db import transaction
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.http import JsonResponse
 from decimal import Decimal
 import json
+from datetime import timedelta
 
 from .models import (
     Cargo, Supplier, Warehouse, CargoCategory, 
@@ -780,10 +782,234 @@ from .models import (
 )
 
 
+def calculate_auto_priority(declared_value, category, weight_kg, supplier):
+    """
+    Automatically determine shipment priority based on business rules
+    """
+    priority = 'MEDIUM'  # Default
+    
+    # High value cargo gets higher priority
+    if declared_value >= 1000000:  # 1M KES
+        priority = 'HIGH'
+    elif declared_value >= 5000000:  # 5M KES
+        priority = 'URGENT'
+    
+    # Special handling categories get bumped up
+    if category and category.requires_special_handling:
+        if priority == 'MEDIUM':
+            priority = 'HIGH'
+        elif priority == 'LOW':
+            priority = 'MEDIUM'
+    
+    # Perishables or time-sensitive goods
+    perishable_keywords = ['food', 'medicine', 'pharmaceutical', 'fresh', 'frozen', 'perishable']
+    if category and any(keyword in category.name.lower() for keyword in perishable_keywords):
+        priority = 'URGENT'
+    
+    # High-performing suppliers get priority for large shipments
+    if supplier and supplier.reliability_score >= 80 and weight_kg >= 1000:
+        if priority == 'LOW':
+            priority = 'MEDIUM'
+    
+    return priority
+
+
+def calculate_auto_transport_mode(weight_kg, volume_cbm, warehouse, supplier):
+    """
+    Automatically determine optimal transport mode based on cargo characteristics
+    """
+    # Default to ROAD for Kenya
+    transport_mode = 'ROAD'
+    
+    # Heavy cargo (>20 tons) - consider RAIL
+    if weight_kg >= 20000:
+        transport_mode = 'RAIL'
+    
+    # Very heavy (>50 tons) and same county - ROAD
+    # Different counties with heavy load - RAIL
+    if weight_kg >= 50000:
+        if supplier and warehouse:
+            if supplier.county != warehouse.county:
+                transport_mode = 'RAIL'
+    
+    # Light cargo (<100kg) and urgent - could be AIR
+    if weight_kg < 100:
+        transport_mode = 'ROAD'  # Still default to road unless explicitly changed
+    
+    # Large volume - RAIL or MULTIMODAL
+    if volume_cbm and volume_cbm >= 50:
+        transport_mode = 'RAIL'
+    
+    return transport_mode
+
+
+def calculate_expected_delivery_time(dispatch_date, supplier, warehouse, transport_mode, weight_kg):
+    """
+    Calculate expected arrival based on distance, mode, and weight
+    """
+    # Base delivery times (in hours) by transport mode
+    base_times = {
+        'ROAD': 24,      # 1 day
+        'RAIL': 48,      # 2 days
+        'AIR': 6,        # 6 hours
+        'SEA': 168,      # 7 days
+        'MULTIMODAL': 72 # 3 days
+    }
+    
+    base_hours = base_times.get(transport_mode, 24)
+    
+    # Add extra time for heavy loads
+    if weight_kg >= 10000:  # 10 tons
+        base_hours += 12
+    elif weight_kg >= 5000:  # 5 tons
+        base_hours += 6
+    
+    # Add extra time for different counties
+    if supplier and warehouse and supplier.county != warehouse.county:
+        # Major routes (Nairobi-Mombasa, Nairobi-Kisumu, etc.)
+        major_counties = ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret']
+        
+        if supplier.county.name in major_counties and warehouse.county.name in major_counties:
+            base_hours += 12  # Add 12 hours for inter-county major routes
+        else:
+            base_hours += 24  # Add 24 hours for remote areas
+    
+    # Add buffer time (10% of estimated time)
+    buffer_hours = base_hours * 0.1
+    total_hours = base_hours + buffer_hours
+    
+    # Calculate expected arrival
+    expected_arrival = dispatch_date + timedelta(hours=total_hours)
+    
+    return expected_arrival
+
+
+def suggest_unit_of_measurement(category, description):
+    """
+    Suggest appropriate unit of measurement based on category
+    """
+    if not category:
+        return 'PCS'
+    
+    category_name = category.name.lower()
+    desc_lower = description.lower() if description else ''
+    
+    # Weight-based categories
+    if any(word in category_name for word in ['food', 'grain', 'cement', 'fertilizer', 'chemical']):
+        if any(word in desc_lower for word in ['ton', 'tonne', 'mt']):
+            return 'TONS'
+        return 'KG'
+    
+    # Liquid categories
+    if any(word in category_name for word in ['liquid', 'fuel', 'oil', 'beverage']):
+        return 'LITRES'
+    
+    # Packaged goods
+    if any(word in category_name for word in ['electronics', 'retail', 'consumer']):
+        if any(word in desc_lower for word in ['box', 'carton', 'package']):
+            return 'CARTONS'
+        return 'PCS'
+    
+    # Building materials
+    if any(word in category_name for word in ['construction', 'building', 'hardware']):
+        return 'PALLETS'
+    
+    return 'PCS'
+
+
+@login_required
+def get_shipment_suggestions(request):
+    """
+    AJAX endpoint to get automated suggestions for shipment fields
+    """
+    if request.method == 'GET':
+        try:
+            supplier_id = request.GET.get('supplier_id')
+            warehouse_id = request.GET.get('warehouse_id')
+            category_id = request.GET.get('category_id')
+            declared_value = request.GET.get('declared_value', 0)
+            weight_kg = request.GET.get('weight_kg', 0)
+            volume_cbm = request.GET.get('volume_cbm', 0)
+            description = request.GET.get('description', '')
+            dispatch_date = request.GET.get('dispatch_date')
+            
+            # Get objects
+            supplier = Supplier.objects.get(id=supplier_id) if supplier_id else None
+            warehouse = Warehouse.objects.get(id=warehouse_id) if warehouse_id else None
+            category = CargoCategory.objects.get(id=category_id) if category_id else None
+            
+            # Convert to proper types
+            declared_value = Decimal(declared_value) if declared_value else Decimal(0)
+            weight_kg = Decimal(weight_kg) if weight_kg else Decimal(0)
+            volume_cbm = Decimal(volume_cbm) if volume_cbm else None
+            
+            # Calculate suggestions
+            priority = calculate_auto_priority(declared_value, category, weight_kg, supplier)
+            transport_mode = calculate_auto_transport_mode(weight_kg, volume_cbm, warehouse, supplier)
+            unit_suggestion = suggest_unit_of_measurement(category, description)
+            
+            # Calculate expected delivery
+            expected_arrival = None
+            if dispatch_date and supplier and warehouse:
+                try:
+                    dispatch_dt = timezone.datetime.fromisoformat(dispatch_date.replace('Z', '+00:00'))
+                    expected_arrival = calculate_expected_delivery_time(
+                        dispatch_dt, supplier, warehouse, transport_mode, weight_kg
+                    )
+                    expected_arrival = expected_arrival.isoformat()
+                except:
+                    pass
+            
+            # Get supplier payment terms and credit info
+            supplier_info = None
+            if supplier:
+                supplier_info = {
+                    'payment_terms': supplier.payment_terms,
+                    'credit_limit': float(supplier.credit_limit),
+                    'reliability_score': float(supplier.reliability_score),
+                    'contact_person': supplier.primary_contact_person,
+                    'phone': supplier.phone_number,
+                }
+            
+            # Get warehouse capacity info
+            warehouse_info = None
+            if warehouse:
+                warehouse_info = {
+                    'utilization': float(warehouse.capacity_utilization_percentage),
+                    'manager': warehouse.manager_name,
+                    'phone': warehouse.manager_phone,
+                }
+            
+            return JsonResponse({
+                'success': True,
+                'suggestions': {
+                    'priority': priority,
+                    'transport_mode': transport_mode,
+                    'unit_of_measurement': unit_suggestion,
+                    'expected_arrival': expected_arrival,
+                },
+                'supplier_info': supplier_info,
+                'warehouse_info': warehouse_info,
+                'reasoning': {
+                    'priority': f'Based on value (KES {declared_value:,.2f}), category requirements, and weight',
+                    'transport_mode': f'Optimal for {weight_kg}kg cargo between selected locations',
+                    'delivery_time': 'Calculated based on distance, mode, and cargo weight',
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
+
+
 @login_required
 def new_shipment(request):
     """
-    Create a new cargo shipment
+    Create a new cargo shipment with smart automation
     """
     if request.method == 'POST':
         try:
@@ -793,16 +1019,19 @@ def new_shipment(request):
                 warehouse_id = request.POST.get('warehouse')
                 category_id = request.POST.get('category')
                 
+                supplier = Supplier.objects.get(id=supplier_id)
+                warehouse = Warehouse.objects.get(id=warehouse_id)
+                category = CargoCategory.objects.get(id=category_id)
+                
                 # Create cargo instance
                 cargo = Cargo()
-                cargo.supplier_id = supplier_id
-                cargo.warehouse_id = warehouse_id
-                cargo.category_id = category_id
+                cargo.supplier = supplier
+                cargo.warehouse = warehouse
+                cargo.category = category
                 
                 # Basic details
                 cargo.description = request.POST.get('description')
                 cargo.quantity = int(request.POST.get('quantity'))
-                cargo.unit_of_measurement = request.POST.get('unit_of_measurement', 'PCS')
                 cargo.weight_kg = Decimal(request.POST.get('weight_kg'))
                 
                 volume_cbm = request.POST.get('volume_cbm')
@@ -816,17 +1045,50 @@ def new_shipment(request):
                     cargo.insurance_value = Decimal(insurance_value)
                 
                 # Shipment details
-                cargo.dispatch_date = request.POST.get('dispatch_date')
-                cargo.expected_arrival_date = request.POST.get('expected_arrival_date')
+                dispatch_date_str = request.POST.get('dispatch_date')
+                cargo.dispatch_date = timezone.datetime.fromisoformat(dispatch_date_str.replace('Z', '+00:00'))
+                
+                # AUTO-CALCULATE expected arrival if not provided or if user wants auto
+                expected_arrival_str = request.POST.get('expected_arrival_date')
+                use_auto_arrival = request.POST.get('use_auto_arrival', 'true') == 'true'
+                
+                # Get transport mode (user can override auto-suggestion)
+                transport_mode = request.POST.get('transport_mode')
+                if not transport_mode or transport_mode == 'AUTO':
+                    transport_mode = calculate_auto_transport_mode(
+                        cargo.weight_kg, cargo.volume_cbm, warehouse, supplier
+                    )
+                cargo.transport_mode = transport_mode
+                
+                # Calculate or use provided expected arrival
+                if use_auto_arrival or not expected_arrival_str:
+                    cargo.expected_arrival_date = calculate_expected_delivery_time(
+                        cargo.dispatch_date, supplier, warehouse, transport_mode, cargo.weight_kg
+                    )
+                else:
+                    cargo.expected_arrival_date = timezone.datetime.fromisoformat(
+                        expected_arrival_str.replace('Z', '+00:00')
+                    )
+                
+                # AUTO-SUGGEST unit of measurement
+                unit = request.POST.get('unit_of_measurement')
+                if not unit or unit == 'AUTO':
+                    unit = suggest_unit_of_measurement(category, cargo.description)
+                cargo.unit_of_measurement = unit
                 
                 # Transport details
-                cargo.transport_mode = request.POST.get('transport_mode', 'ROAD')
                 cargo.vehicle_registration = request.POST.get('vehicle_registration', '').upper()
                 cargo.driver_name = request.POST.get('driver_name')
                 cargo.driver_phone = request.POST.get('driver_phone')
                 
-                # Priority and status
-                cargo.priority = request.POST.get('priority', 'MEDIUM')
+                # AUTO-CALCULATE priority (user can override)
+                priority = request.POST.get('priority')
+                if not priority or priority == 'AUTO':
+                    priority = calculate_auto_priority(
+                        cargo.declared_value, category, cargo.weight_kg, supplier
+                    )
+                cargo.priority = priority
+                
                 cargo.status = 'DISPATCHED'
                 
                 # Documentation
@@ -850,13 +1112,13 @@ def new_shipment(request):
                     cargo=cargo,
                     from_status='CREATED',
                     to_status='DISPATCHED',
-                    change_reason='Initial shipment creation',
-                    location=f"{cargo.supplier.town_city}, {cargo.supplier.county.name}",
-                    remarks=f"Shipment dispatched to {cargo.warehouse.name}",
+                    change_reason='Initial shipment creation (automated)',
+                    location=f"{supplier.town_city}, {supplier.county.name}",
+                    remarks=f"Shipment dispatched to {warehouse.name}. Priority: {cargo.get_priority_display()}, Mode: {cargo.get_transport_mode_display()}",
                     created_by=request.user
                 )
                 
-                # Create arrival alert for high priority shipments
+                # Create alerts for high priority or special handling
                 if cargo.priority in ['HIGH', 'URGENT']:
                     Alert.objects.create(
                         alert_type='ARRIVAL',
@@ -864,14 +1126,25 @@ def new_shipment(request):
                         title=f'High Priority Shipment Dispatched',
                         message=f'Cargo {cargo.cargo_id} ({cargo.priority}) has been dispatched. Expected arrival: {cargo.expected_arrival_date.strftime("%d %b %Y %H:%M")}',
                         cargo=cargo,
-                        supplier=cargo.supplier,
-                        warehouse=cargo.warehouse,
+                        supplier=supplier,
+                        warehouse=warehouse,
+                        created_by=request.user
+                    )
+                
+                if category.requires_special_handling:
+                    Alert.objects.create(
+                        alert_type='SYSTEM',
+                        severity='WARNING',
+                        title=f'Special Handling Required',
+                        message=f'Cargo {cargo.cargo_id} requires special handling. Category: {category.name}',
+                        cargo=cargo,
+                        warehouse=warehouse,
                         created_by=request.user
                     )
                 
                 messages.success(
                     request, 
-                    f'Shipment {cargo.cargo_id} created successfully! Tracking number: {cargo.tracking_number}'
+                    f'Shipment {cargo.cargo_id} created successfully with automated priority ({cargo.get_priority_display()}) and transport mode ({cargo.get_transport_mode_display()})!'
                 )
                 return redirect('cargo_detail', cargo_id=cargo.id)
                 
@@ -886,7 +1159,7 @@ def new_shipment(request):
         'categories': CargoCategory.objects.filter(is_active=True).order_by('name'),
         'transport_modes': Cargo._meta.get_field('transport_mode').choices,
         'priority_choices': Cargo.PRIORITY_CHOICES,
-        'units_of_measurement': ['PCS', 'KG', 'TONS', 'BOXES', 'PALLETS', 'CARTONS', 'UNITS'],
+        'units_of_measurement': ['AUTO', 'PCS', 'KG', 'TONS', 'BOXES', 'PALLETS', 'CARTONS', 'UNITS', 'LITRES'],
         'page_title': 'Create New Shipment',
         'form_action': 'new_shipment',
     }
@@ -897,7 +1170,7 @@ def new_shipment(request):
 @login_required
 def edit_shipment(request, cargo_id):
     """
-    Edit existing cargo shipment
+    Edit existing cargo shipment (automation disabled for edits to preserve user intent)
     """
     cargo = get_object_or_404(Cargo, id=cargo_id)
     
@@ -916,6 +1189,7 @@ def edit_shipment(request, cargo_id):
                 old_status = cargo.status
                 old_warehouse = cargo.warehouse
                 old_expected_arrival = cargo.expected_arrival_date
+                old_priority = cargo.priority
                 
                 # Update basic details
                 cargo.supplier_id = request.POST.get('supplier')
@@ -986,6 +1260,18 @@ def edit_shipment(request, cargo_id):
                         created_by=request.user
                     )
                 
+                # Create alert if priority changed significantly
+                if cargo.priority != old_priority:
+                    Alert.objects.create(
+                        alert_type='SYSTEM',
+                        severity='INFO',
+                        title=f'Shipment Priority Changed',
+                        message=f'Cargo {cargo.cargo_id} priority changed from {old_priority} to {cargo.priority}',
+                        cargo=cargo,
+                        warehouse=cargo.warehouse,
+                        created_by=request.user
+                    )
+                
                 # Create alert if warehouse changed
                 if cargo.warehouse != old_warehouse:
                     Alert.objects.create(
@@ -1028,7 +1314,7 @@ def edit_shipment(request, cargo_id):
         'transport_modes': Cargo._meta.get_field('transport_mode').choices,
         'priority_choices': Cargo.PRIORITY_CHOICES,
         'status_choices': Cargo.STATUS_CHOICES,
-        'units_of_measurement': ['PCS', 'KG', 'TONS', 'BOXES', 'PALLETS', 'CARTONS', 'UNITS'],
+        'units_of_measurement': ['PCS', 'KG', 'TONS', 'BOXES', 'PALLETS', 'CARTONS', 'UNITS', 'LITRES'],
         'page_title': f'Edit Shipment - {cargo.cargo_id}',
         'form_action': 'edit_shipment',
         'is_edit': True,
